@@ -170,7 +170,7 @@ export const Feed = () => {
               onChange={(e) => setContent(e.target.value)}
               placeholder="What's happening?"
               rows={3}
-              className="w-full px-4 py-3 border border-gray-300 rounded-2xl focus:outline-none focus:border-orange-500 resize-none"
+              className="w-full px-4 py-3 border border-gray-300 rounded-2xl focus:outline-none focus:border-[rgb(var(--color-accent))] resize-none"
               autoFocus
             />
             
@@ -195,7 +195,7 @@ export const Feed = () => {
             {isUploading && (
               <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
                 <div 
-                  className="bg-orange-500 h-full transition-all duration-300"
+                  className="bg-[rgba(var(--color-accent),1)] h-full transition-all duration-300"
                   style={{ width: `${uploadProgress}%` }}
                 />
               </div>
@@ -230,13 +230,13 @@ export const Feed = () => {
                     setFile(null);
                   }}
                   placeholder="Paste image/video/file URL..."
-                  className="flex-1 min-w-0 px-3 py-1.5 text-sm border border-gray-300 rounded-full focus:outline-none focus:border-orange-500"
+                  className="flex-1 min-w-0 px-3 py-1.5 text-sm border border-gray-300 rounded-full focus:outline-none focus:border-[rgb(var(--color-accent))]"
                 />
               </div>
               <button
                 type="submit"
                 disabled={isUploading || (!content.trim() && !file && !remoteUrl.trim())}
-                className="ml-auto bg-orange-500 disabled:bg-gray-300 text-white px-6 py-2 rounded-full hover:bg-orange-600 flex items-center gap-2 font-semibold transition"
+                className="ml-auto bg-[rgba(var(--color-accent),1)] disabled:bg-gray-300 text-[rgb(var(--color-text-on-primary))] px-6 py-2 rounded-full hover:bg-[rgba(var(--color-primary),1)] flex items-center gap-2 font-semibold transition"
               >
                 <Send size={16} />
                 {isUploading ? 'Uploading...' : 'Post'}
@@ -275,7 +275,7 @@ export const Feed = () => {
                   <button onClick={() => goToProfile(post.user_id)} className="font-bold hover:underline">
                     {post.profiles?.display_name}
                   </button>
-                  {post.profiles?.verified && <BadgeCheck size={16} className="text-orange-500" />}
+                  {post.profiles?.verified && <BadgeCheck size={16} className="text-[rgb(var(--color-accent))]" />}
                   <span className="text-gray-500 text-sm">@{post.profiles?.username}</span>
                   <span className="text-gray-500 text-sm">· {new Date(post.created_at).toLocaleDateString()}</span>
                 </div>
