@@ -26,7 +26,7 @@ export const CustomPage = ({ slug }: CustomPageProps) => {
         setContent(text);
       } else {
         // Fallback: try public/pages in project
-        const res = await fetch(`/pages/${slug}.md`);
+        const res = await fetch(`/pages/${slug}`, { cache: 'no-store' });
         if (res.ok) {
           const text = await res.text();
           setContent(text);
