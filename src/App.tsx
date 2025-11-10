@@ -7,14 +7,21 @@ import { Messages } from './components/Messages';
 import { Profile } from './components/Profile';
 import { Search } from './components/Search';
 import { Settings } from './components/Settings';
+import { CustomPage } from './components/CustomPage';
 import { Home, MessageSquare, User, LogOut, Search as SearchIcon } from 'lucide-react';
 import { supabase } from './lib/supabase';
+import { BrowserRouter, useLocation, useNavigate } from 'react-router-dom';
+
+type ViewType = 'feed' | 'messages' | 'profile' | 'settings' | 'page';
 
 const Main = () => {
-  const [view, setView] = useState<'feed' | 'messages' | 'profile' | 'settings'>('feed');
+  const [view, setView] = useState<ViewType>('feed');
+  const [pageSlug, setPageSlug] = useState<string>('');
   const [selectedProfileId, setSelectedProfileId] = useState<string | undefined>();
   const [showSearch, setShowSearch] = useState(false);
   const { user, profile, loading, signOut } = useAuth();
+  const location = useLocation();
+  const navigate = useNavigate();
 
   // Set theme from profile
   useEffect(() => {
@@ -23,17 +30,14 @@ const Main = () => {
     }
   }, [profile?.theme]);
 
-  // === URL PROFILE LOOKUP — WORKS EVEN WHEN NOT LOGGED IN ===
+  // === URL PROFILE LOOKUP (via ?username) ===
   useEffect(() => {
     const checkUrlForProfile = async () => {
-      // Get the raw search string: ?cpbk → "cpbk"
-      const search = window.location.search; // "?cpbk"
+      const search = window.location.search;
       const username = search.startsWith('?') ? search.slice(1) : search;
 
-      if (!username || username.length < 1) {
-        setView('feed');
-        setSelectedProfileId(undefined);
-        return;
+      if (!username || username.includes('/') || username.includes('.')) {
+        return; // Let page routing handle paths
       }
 
       try {
@@ -46,15 +50,9 @@ const Main = () => {
         if (data) {
           setSelectedProfileId(data.id);
           setView('profile');
-          // Optional: clean URL after loading
-          // window.history.replaceState({}, '', window.location.pathname);
-        } else {
-          setView('feed');
-          setSelectedProfileId(undefined);
         }
       } catch (err) {
-        setView('feed');
-        setSelectedProfileId(undefined);
+        // Ignore — not a profile
       }
     };
 
@@ -62,6 +60,29 @@ const Main = () => {
     window.addEventListener('popstate', checkUrlForProfile);
     return () => window.removeEventListener('popstate', checkUrlForProfile);
   }, []);
+
+  // === CUSTOM PAGE ROUTING (via /slug) ===
+  useEffect(() => {
+    const path = location.pathname;
+    if (path === '/' || path === '') {
+      setView('feed');
+      setPageSlug('');
+      return;
+    }
+
+    const match = path.match(/^\/([a-zA-Z0-9-]+)$/);
+    if (match) {
+      const slug = match[1];
+      setView('page');
+      setPageSlug(slug);
+      setSelectedProfileId(undefined);
+      return;
+    }
+
+    // Fallback to feed
+    setView('feed');
+    setPageSlug('');
+  }, [location.pathname]);
 
   // Keep internal navigation working
   useEffect(() => {
@@ -74,7 +95,7 @@ const Main = () => {
         .single()
         .then(({ data }) => {
           if (data) {
-            window.history.replaceState({}, '', `/?${data.username}`);
+            navigate(`/?${data.username}`);
             setSelectedProfileId(profileId);
             setView('profile');
           }
@@ -82,30 +103,28 @@ const Main = () => {
     };
     window.addEventListener('navigateToProfile', handler);
     return () => window.removeEventListener('navigateToProfile', handler);
-  }, []);
+  }, [navigate]);
 
-  // Update last_seen every minute when logged in
-  useEffect(() => {
-    if (!user) return;
+  if (loading) {
+    return (
+      <div
+        className="min-h-screen bg-[rgb(var(--color-background))] flex items-center justify-center text-2xl font-bold text-[rgb(var(--color-text))]"
+        style={{
+          background: `linear-gradient(to bottom right, rgba(var(--color-surface),0.05), rgba(var(--color-primary),0.05))`,
+        }}
+      >
+        Loading...
+      </div>
+    );
+  }
 
-    const updateLastSeen = async () => {
-      await supabase
-        .from('profiles')
-        .update({ last_seen: new Date().toISOString() })
-        .eq('id', user.id);
-    };
-
-    updateLastSeen(); // Initial update
-    const interval = setInterval(updateLastSeen, 60000); // Every minute
-
-    return () => clearInterval(interval);
-  }, [user]);
-
-  if (loading) return <div className="min-h-screen bg-[rgb(var(--color-background))] flex items-center justify-center text-2xl font-bold text-[rgb(var(--color-text))]" style={{background: `linear-gradient(to bottom right, [rgba(var(--color-surface),0.05)], [rgba(var(--color-primary),0.05)])`}}>Loading...</div>;
+  // === RENDER CUSTOM PAGE ===
+  if (view === 'page' && pageSlug) {
+    return <CustomPage slug={pageSlug} />;
+  }
 
   // === NOT LOGGED IN? SHOW AUTH OR PUBLIC PROFILE ===
   if (!user || !profile) {
-    // Allow public profile viewing
     if (view === 'profile' && selectedProfileId) {
       return (
         <div className="min-h-screen bg-[rgb(var(--color-background))]">
@@ -114,28 +133,28 @@ const Main = () => {
               <h1 className="text-2xl font-black bg-gradient-to-r from-[rgba(var(--color-primary),1)] via-[rgba(var(--color-accent),1)] to-[rgba(var(--color-primary),1)] bg-clip-text text-transparent">
                 聊天
               </h1>
-              <a href="/" className="text-[rgb(var(--color-primary))] hover:text-[rgba(var(--color-primary),0.8)] font-bold">← Back to Home</a>
+              <a href="/" className="text-[rgb(var(--color-primary))] hover:text-[rgba(var(--color-primary),0.8)] font-bold">
+                ← Back to Home
+              </a>
             </div>
           </div>
           <Profile userId={selectedProfileId} />
         </div>
       );
     }
-
     return <Auth />;
   }
 
-  const handleMessageUser = (profile: ProfileType) => {
-  setView('messages');
-  setSelectedProfileId(undefined);
-  // Let Messages.tsx handle the actual selection via event
-  window.dispatchEvent(new CustomEvent('openDirectMessage', { detail: profile }));
-};
+  const handleMessageUser = (profile: any) => {
+    setView('messages');
+    setSelectedProfileId(undefined);
+    window.dispatchEvent(new CustomEvent('openDirectMessage', { detail: profile }));
+  };
 
-const handleSettings = () => {
-  setView('settings');
-  setSelectedProfileId(undefined);
-};
+  const handleSettings = () => {
+    setView('settings');
+    setSelectedProfileId(undefined);
+  };
 
   return (
     <div className="min-h-screen bg-[rgb(var(--color-background))]">
@@ -145,41 +164,54 @@ const handleSettings = () => {
             聊天
           </h1>
           <div className="flex items-center gap-2">
-<button
-    onClick={() => setShowSearch(true)}
-    className="p-3 rounded-full hover:bg-[rgb(var(--color-surface-hover))] transition"
-  >
-    <SearchIcon size={24} className="text-[rgb(var(--color-text-secondary))]" />
-  </button>            
-<button
+            <button
+              onClick={() => setShowSearch(true)}
+              className="p-3 rounded-full hover:bg-[rgb(var(--color-surface-hover))] transition"
+            >
+              <SearchIcon size={24} className="text-[rgb(var(--color-text-secondary))]" />
+            </button>
+            <button
               onClick={() => {
                 setView('feed');
                 setSelectedProfileId(undefined);
-                window.history.replaceState({}, '', '/');
+                navigate('/');
               }}
-              className={`p-3 rounded-full transition ${view === 'feed' ? 'bg-[rgba(var(--color-primary),0.1)] text-[rgb(var(--color-primary))]' : 'hover:bg-[rgb(var(--color-surface-hover))]'}`}
+              className={`p-3 rounded-full transition ${
+                view === 'feed' ? 'bg-[rgba(var(--color-primary),0.1)] text-[rgb(var(--color-primary))]' : 'hover:bg-[rgb(var(--color-surface-hover))]'
+              }`}
             >
               <Home size={24} />
             </button>
             <button
-              onClick={() => { setView('messages'); setSelectedProfileId(undefined); }}
-              className={`p-3 rounded-full transition ${view === 'messages' ? 'bg-[rgba(var(--color-primary),0.1)] text-[rgb(var(--color-primary))]' : 'hover:bg-[rgb(var(--color-surface-hover))]'}`}
+              onClick={() => {
+                setView('messages');
+                setSelectedProfileId(undefined);
+              }}
+              className={`p-3 rounded-full transition ${
+                view === 'messages' ? 'bg-[rgba(var(--color-primary),0.1)] text-[rgb(var(--color-primary))]' : 'hover:bg-[rgb(var(--color-surface-hover))]'
+              }`}
             >
               <MessageSquare size={24} />
             </button>
             <button
-  onClick={() => {
-    if (!profile?.username) return;
-    
-    window.history.replaceState({}, '', `/?${profile.username}`);
-    setSelectedProfileId(undefined);
-    setView('profile');
-  }}
-  className={`p-3 rounded-full transition ${view === 'profile' && !selectedProfileId ? 'bg-[rgba(var(--color-primary),0.1)] text-[rgb(var(--color-primary))]' : 'hover:bg-[rgb(var(--color-surface-hover))]'}`}
->
-  <User size={24} />
-</button>
-            <button onClick={signOut} className="p-3 rounded-full hover:bg-[rgba(239,68,68,0.1)] text-red-600 transition">
+              onClick={() => {
+                if (!profile?.username) return;
+                navigate(`/?${profile.username}`);
+                setSelectedProfileId(undefined);
+                setView('profile');
+              }}
+              className={`p-3 rounded-full transition ${
+                view === 'profile' && !selectedProfileId
+                  ? 'bg-[rgba(var(--color-primary),0.1)] text-[rgb(var(--color-primary))]'
+                  : 'hover:bg-[rgb(var(--color-surface-hover))]'
+              }`}
+            >
+              <User size={24} />
+            </button>
+            <button
+              onClick={signOut}
+              className="p-3 rounded-full hover:bg-[rgba(239,68,68,0.1)] text-red-600 transition"
+            >
               <LogOut size={24} />
             </button>
           </div>
@@ -189,13 +221,21 @@ const handleSettings = () => {
       <main className="pb-20">
         {view === 'feed' && <Feed />}
         {view === 'messages' && <Messages />}
-        {view === 'profile' && <Profile userId={selectedProfileId} onMessage={handleMessageUser} onSettings={!selectedProfileId || selectedProfileId === user.id ? handleSettings : undefined} />}
+        {view === 'profile' && (
+          <Profile
+            userId={selectedProfileId}
+            onMessage={handleMessageUser}
+            onSettings={
+              !selectedProfileId || selectedProfileId === user.id ? handleSettings : undefined
+            }
+          />
+        )}
         {view === 'settings' && <Settings />}
         {showSearch && <Search onClose={() => setShowSearch(false)} />}
       </main>
 
       <footer className="text-center text-[rgb(var(--color-text-secondary))] text-xs py-4 border-t border-[rgb(var(--color-border))] bg-[rgb(var(--color-surface))]">
-        © Mux 2025
+        © Mux {new Date().getFullYear()}
       </footer>
     </div>
   );
@@ -204,7 +244,9 @@ const handleSettings = () => {
 function App() {
   return (
     <AuthProvider>
-      <Main />
+      <BrowserRouter>
+        <Main />
+      </BrowserRouter>
     </AuthProvider>
   );
 }
