@@ -132,13 +132,13 @@ export const Settings = () => {
 
       {/* Theme Section */}
       <section className="bg-[rgb(var(--color-surface))] p-6 rounded-xl border border-[rgb(var(--color-border))]">
-        <h2 className="text-lg text-[rgb(var(--color-text)) font-semibold mb-4">Theme</h2>
+        <h2 className="text-lg text-[rgb(var(--color-text))] font-semibold mb-4">Theme</h2>
         <Themes currentTheme={profile.theme} onChange={handleThemeChange} loading={loading} />
       </section>
 
       {/* Username Section */}
       <section className="bg-[rgb(var(--color-surface))] p-6 rounded-xl border border-[rgb(var(--color-border))]">
-        <h2 className="text-lg text-[rgb(var(--color-text)) font-semibold mb-4">Username</h2>
+        <h2 className="text-lg text-[rgb(var(--color-text))] font-semibold mb-4">Username</h2>
         <p className="text-[rgb(var(--color-text-secondary))] mb-2">Current: @{profile.username}</p>
         <div className="flex gap-2">
           <input
@@ -160,7 +160,7 @@ export const Settings = () => {
 
       {/* Email Section */}
       <section className="bg-[rgb(var(--color-surface))] p-6 rounded-xl border border-[rgb(var(--color-border))]">
-        <h2 className="text-lg text-[rgb(var(--color-text)) font-semibold mb-4">Email</h2>
+        <h2 className="text-lg text-[rgb(var(--color-text))] font-semibold mb-4">Email</h2>
         <p className="text-[rgb(var(--color-text-secondary))] mb-2">Current: {user.email}</p>
         <div className="flex gap-2">
           <input
@@ -183,7 +183,7 @@ export const Settings = () => {
 
       {/* Password Section */}
       <section className="bg-[rgb(var(--color-surface))] p-6 rounded-xl border border-[rgb(var(--color-border))]">
-        <h2 className="text-lg text-[rgb(var(--color-text)) font-semibold mb-4">Password</h2>
+        <h2 className="text-lg text-[rgb(var(--color-text))] font-semibold mb-4">Password</h2>
         <div className="space-y-3">
           <input
             type="password"
@@ -211,8 +211,9 @@ export const Settings = () => {
       </section>
 
       {/* Verification Section */}
-      <section className="bg-[rgb(var(--color-surface))] p-6 rounded-xl border border-[rgb(var(--color-border))]"><BadgeCheck className="text-[rgb(var(--color-primary))]" />
-        <h2 className="text-lg text-[rgb(var(--color-text)) font-semibold mb-4">Verification</h2>
+      <section className="bg-[rgb(var(--color-surface))] p-6 rounded-xl border border-[rgb(var(--color-border))] flex items-center gap-2">
+        <BadgeCheck size={24} className="text-[rgb(var(--color-primary))]" />
+        <h2 className="text-lg text-[rgb(var(--color-text))] font-semibold mb-4">Verification</h2>
         {profile.verified ? (
           <div className="flex items-center gap-2 text-green-600">
             <CheckCircle size={20} />
