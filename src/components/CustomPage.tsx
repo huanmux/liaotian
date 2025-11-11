@@ -52,8 +52,16 @@ export const CustomPage = ({ slug }: CustomPageProps) => {
   return (
     <div className="min-h-screen bg-[rgb(var(--color-background))] pt-20 pb-10">
       <div className="max-w-4xl mx-auto px-6">
+
+        {/* Markdown Content */}
+        <article className="prose max-w-none bg-[rgb(var(--color-surface))] p-8 mb-8 rounded-2xl border border-[rgb(var(--color-border))]">
+          <ReactMarkdown remarkPlugins={[remarkGfm]}>
+            {content}
+          </ReactMarkdown>
+        </article>
+
         {/* Author Panel */}
-        <div className="bg-[rgb(var(--color-surface))] rounded-2xl p-6 mb-8 border border-[rgb(var(--color-border))] shadow-sm">
+        <div className="bg-[rgb(var(--color-surface))] rounded-2xl p-6 border border-[rgb(var(--color-border))] shadow-sm">
           <div className="flex items-center gap-4">
             <img
               src={profile?.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=liaotian`}
@@ -72,13 +80,6 @@ export const CustomPage = ({ slug }: CustomPageProps) => {
             </div>
           </div>
         </div>
-
-        {/* Markdown Content */}
-        <article className="prose max-w-none bg-[rgb(var(--color-surface))] p-8 rounded-2xl border border-[rgb(var(--color-border))]">
-          <ReactMarkdown remarkPlugins={[remarkGfm]}>
-            {content}
-          </ReactMarkdown>
-        </article>
 
         <div className="mt-10 text-center text-sm text-[rgb(var(--color-text-secondary))]">
           © Mux {new Date().getFullYear()}

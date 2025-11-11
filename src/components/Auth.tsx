@@ -2,6 +2,44 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { LogIn, AlertCircle } from 'lucide-react';
 
+const PolicyModal = ({ isOpen, title, slug, onClose }) => {
+  if (!isOpen) return null;
+  const contentUrl = `/${slug}`;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60 backdrop-blur-sm p-4">
+      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-4xl h-full max-h-[90vh] flex flex-col transform transition-all duration-300 scale-100 opacity-100">
+        <div className="flex justify-between items-center p-6 border-b border-orange-200 bg-orange-50 rounded-t-3xl">
+          <h2 className="text-2xl font-black text-gray-800">{title}</h2>
+          <button
+            onClick={onClose}
+            className="p-3 text-red-600 hover:text-white hover:bg-red-600 rounded-full transition"
+            aria-label="Close modal"
+          >
+            <svg
+              className="w-6 h-6"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M6 18L18 6M6 6l12 12"></path>
+            </svg>
+          </button>
+        </div>
+        <div className="flex-grow overflow-hidden p-0">
+          {/* Using an iframe to load the content from the relative slug path */}
+          <iframe
+            src={contentUrl}
+            title={title}
+            className="w-full h-full border-0 rounded-b-3xl"
+          />
+        </div>
+      </div>
+    </div>
+  );
+};
+
 export const Auth = () => {
   const [isSignUp, setIsSignUp] = useState(false);
   const [email, setEmail] = useState('');
@@ -12,10 +50,26 @@ export const Auth = () => {
   const [success, setSuccess] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const { signUp, signIn } = useAuth();
-
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [modalTitle, setModalTitle] = useState('');
+  const [modalSlug, setModalSlug] = useState('');
+  
   useEffect(() => {
     setError('');
   }, [email, password, username, displayName]);
+
+    // Modal handler functions
+  const openModal = (title, slug) => {
+    setModalTitle(title);
+    setModalSlug(slug);
+    setIsModalOpen(true);
+  };
+
+  const closeModal = () => {
+    setIsModalOpen(false);
+    setModalTitle('');
+    setModalSlug('');
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -184,6 +238,7 @@ export const Auth = () => {
           <form onSubmit={handleSubmit} className="space-y-6">
             {isSignUp && (
               <>
+                <p class="text-xs text-gray-500 text-center -mt-3">By creating an account you agree to the <button type="button" class="text-red-600 hover:underline font-medium" onClick={() => openModal('Terms of Service', 'terms-of-service')}>Terms of Service</button> and <button type="button" class="text-red-600 hover:underline font-medium" onClick={() => openModal('Privacy Policy', 'privacy-policy')}>Privacy Policy</button></p>
                 <input
                   type="text"
                   placeholder="Username (no spaces)"
@@ -274,10 +329,11 @@ export const Auth = () => {
           </div>
 
           <div className="text-center text-gray-600 text-sm mt-12 font-bold">
-            © Mux 2025
+            © Mux {new Date().getFullYear()}
           </div>
         </div>
       </div>
+       <PolicyModal isOpen={isModalOpen} title={modalTitle} slug={modalSlug} onClose={closeModal} />
     </div>
   );
 };
