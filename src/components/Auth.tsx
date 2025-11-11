@@ -238,7 +238,7 @@ export const Auth = () => {
           <form onSubmit={handleSubmit} className="space-y-6">
             {isSignUp && (
               <>
-                <p class="text-xs text-gray-500 text-center -mt-3">By creating an account you agree to the <button type="button" class="text-red-600 hover:underline font-medium">Terms of Service</button> and <button type="button" class="text-red-600 hover:underline font-medium">Privacy Policy</button></p>
+                <p class="text-xs text-gray-500 text-center -mt-3">By creating an account you agree to the <button type="button" class="text-red-600 hover:underline font-medium" onClick={() => openModal('Terms of Service', 'terms-of-service')}>Terms of Service</button> and <button type="button" class="text-red-600 hover:underline font-medium" onClick={() => openModal('Privacy Policy', 'privacy-policy')}>Privacy Policy</button></p>
                 <input
                   type="text"
                   placeholder="Username (no spaces)"
