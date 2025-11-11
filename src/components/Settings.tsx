@@ -211,8 +211,7 @@ export const Settings = () => {
       </section>
 
       {/* Verification Section */}
-      <section className="bg-[rgb(var(--color-surface))] p-6 rounded-xl border border-[rgb(var(--color-border))] flex items-center gap-2">
-        <BadgeCheck size={24} className="text-[rgb(var(--color-primary))]" />
+      <section className="bg-[rgb(var(--color-surface))] p-6 rounded-xl border border-[rgb(var(--color-border))]">
         <h2 className="text-lg text-[rgb(var(--color-text))] font-semibold mb-4">Verification</h2>
         {profile.verified ? (
           <div className="flex items-center gap-2 text-green-600">
