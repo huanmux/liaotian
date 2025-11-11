@@ -13,8 +13,9 @@ const presets: ThemePreset[] = [
   { value: 'lt-dark', name: 'LT Dark', desc: 'Dark mode. Fiery orange and reds.' },
   { value: 'muxday', name: 'MuxDay', desc: 'Alternate theme in honor of the previous MuxDay platform. Analogous shades of blue.' },
   { value: 'amrella', name: 'Amrella', desc: 'Alternate theme in honor of the previous Amrella platform. Analogous shades of green.' },
-  { value: 'cooper-black', name: 'Cooper Black [⭐ Branded]', desc: 'Special theme for Cooper Black fans and enthusiasts. Futuristic cyberpunk vibes.' },
-  { value: 'knightspeak', name: 'Knightspeak [⭐ Branded]', desc: 'Special theme for Knightspeak fans and enthusiasts. Medieval vibes.' },
+  { value: 'cooper-black', name: 'Cooper Black', desc: 'Special theme for Cooper Black fans and enthusiasts. Futuristic cyberpunk vibes.' },
+  { value: 'knightspeak', name: 'Knightspeak', desc: 'Special theme for Knightspeak fans and enthusiasts. Medieval vibes.' },
+  { value: 'wildest-dimensions', name: 'Wildest Dimensions', desc: 'Special theme for Radiyana, in the Wildest Dimensions. Feel the high life.'}
 ];
 
 interface ThemesProps {
