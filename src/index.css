@@ -93,3 +93,20 @@
   --color-text-secondary: 90, 75, 55; /* Darker Tan/Brown Secondary Text */
   --color-surface-hover: 235, 225, 210;  /* Subtle darker hover state */
 }
+
+/* Wildest Dimensions Theme: Neon Red/Pink Analogous Dark Theme */
+.theme-wildest-dimensions {
+  --color-primary: 255, 10, 69;    /* Vivid Red/Crimson (#ff0a45) */
+  --color-accent: 255, 0, 150;     /* Deep Magenta/Pink (#ff0096) */
+
+  --color-gradient-start: 255, 10, 69;
+  --color-gradient-end: 255, 0, 150;
+
+  --color-background: 10, 0, 20;   /* Very Dark Purple/Black */
+  --color-text: 240, 240, 255;     /* Near White */
+  --color-text-on-primary: 255, 255, 255; /* White for text over primary color */
+  --color-surface: 25, 10, 40;      /* Dark Card Background */
+  --color-border: 50, 30, 70;      /* Dark Purple Border */
+  --color-text-secondary: 170, 150, 190; /* Soft Purple-Gray Secondary Text */
+  --color-surface-hover: 35, 20, 50;      /* Slightly lighter hover state */
+}
