@@ -154,13 +154,37 @@ export const Messages = () => {
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'messages' },
-        (payload) => {
+        async (payload) => { // Make async
           const msg = payload.new as AppMessage;
           if (
             (msg.sender_id === user!.id && msg.recipient_id === selectedUser.id) ||
             (msg.sender_id === selectedUser.id && msg.recipient_id === user!.id)
           ) {
-            setMessages((prev) => [...prev, msg]);
+            
+            // --- MODIFICATION START ---
+            let finalMsg = msg;
+            // If it's a reply and the joined data isn't present, fetch it.
+            // This handles the case where the subscription payload doesn't include the join
+            // (which it never does) and the render-time fallback might fail
+            // if the message isn't in the local state (e.g., reply to old message).
+            if (finalMsg.reply_to_id && !finalMsg.reply_to) {
+              
+              // We CANNOT trust `messages.find()` here due to stale closures.
+              // So we just fetch. The render-time fallback will still work
+              // and this fetch only adds data if it was missing.
+              const { data: repliedToMsgData } = await supabase
+                .from('messages')
+                .select('id, content, sender_id')
+                .eq('id', finalMsg.reply_to_id)
+                .single();
+              
+              if (repliedToMsgData) {
+                finalMsg.reply_to = repliedToMsgData;
+              }
+            }
+            // --- MODIFICATION END ---
+
+            setMessages((prev) => [...prev, finalMsg]); // Add the potentially modified message
             scrollToBottom();
             loadConversations();
           }
@@ -527,7 +551,7 @@ export const Messages = () => {
                     <div className="flex gap-1 items-end">
                       <span className="w-2 h-2 bg-[rgb(var(--color-text-secondary))] rounded-full animate-pulse" style={{ animationDelay: '0ms' }}></span>
                       <span className="w-2 h-2 bg-[rgb(var(--color-text-secondary))] rounded-full animate-pulse" style={{ animationDelay: '200ms' }}></span>
-                      <span className="w-2 h-2 bg-[rgb(var(--color-text-secondary))] rounded-full animate-pulse" style={{ animationDelay: '400ms' }}></span>
+                      <span className="w-2 h-2 bg-[rgb(var(--color-text-secondary))] rounded-full animate-pulse" style={{ animationDelay: '4ds00ms' }}></span>
                     </div>
                   </div>
                 </div>
