@@ -315,7 +315,7 @@ export const Messages = () => {
   };
 
   return (
-    <div className="flex h-screen bg-[rgb(var(--color-background))] overflow-hidden">
+    <div className="flex h-screen mb-[-20] bg-[rgb(var(--color-background))] overflow-hidden">
       <div className={`w-full md:w-96 bg-[rgb(var(--color-surface))] border-r border-[rgb(var(--color-border))] flex-shrink-0 flex flex-col transition-transform duration-300 ease-in-out ${showSidebar ? 'translate-x-0' : '-translate-x-full md:translate-x-0'} md:relative fixed inset-y-0 left-0 z-40 md:z-auto`}>
         <div className="p-4 border-b border-[rgb(var(--color-border))] sticky top-0 bg-[rgb(var(--color-surface))] z-10">
           <h2 className="text-3xl font-extrabold text-[rgb(var(--color-text))] mb-4">Chats</h2>
@@ -409,7 +409,7 @@ export const Messages = () => {
                   className={`flex ${msg.sender_id === user!.id ? 'justify-end' : 'justify-start'}`}
                 >
                   <div
-                    className={`max-w-[80%] md:max-w-[65%] px-3 py-2 rounded-xl shadow-md ${
+                    className={`max-w-[90%] sm:max-w-[80%] md:max-w-[65%] px-3 py-2 rounded-xl shadow-md ${
                       msg.sender_id === user!.id
                         ? 'bg-[rgb(var(--color-accent))] text-[rgb(var(--color-text-on-primary))] rounded-br-none'
                         : 'bg-[rgb(var(--color-surface))] text-[rgb(var(--color-text))] border border-[rgb(var(--color-border))] rounded-tl-none'
