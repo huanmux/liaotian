@@ -239,9 +239,6 @@ export const Shots = () => {
                       src={video.profiles?.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${video.profiles?.username}`}
                       className="w-12 h-12 rounded-full border-2 border-white"
                     />
-                    <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 bg-red-500 rounded-full p-0.5 text-white">
-                       <span className="text-[10px] font-bold">+</span>
-                    </div>
                  </button>
               </div>
 
