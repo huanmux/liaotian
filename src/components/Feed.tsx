@@ -2,12 +2,10 @@
 import { useEffect, useState, useRef } from 'react';
 import { supabase, Post, uploadMedia } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
-import { Send, BadgeCheck, Edit3, Image, FileText, X, Paperclip, Link, Heart, MessageCircle } from 'lucide-react';
+import { Send, BadgeCheck, Edit3, Image, FileText, X, Paperclip, Link, Heart, MessageCircle, Loader2 } from 'lucide-react';
 
 const FOLLOW_ONLY_FEED = import.meta.env.VITE_FOLLOW_ONLY_FEED === 'true';
-const POST_PAGE_SIZE = 10;
-const LOAD_MORE_DURATION_MS = 5000;
-const LOAD_MORE_INTERVAL_MS = 50;
+const POSTS_PER_PAGE = 10;
 
 // Auxiliary types for the new features
 interface Comment {
@@ -60,14 +58,12 @@ export const Feed = () => {
   const [newCommentText, setNewCommentText] = useState('');
   const [isPostingComment, setIsPostingComment] = useState(false);
 
-  // Pagination & Loader State
+  // Pagination & Scroll Breaker State
   const [page, setPage] = useState(0);
-  const [hasMore, setHasMore] = useState(true);
-  const [isLoading, setIsLoading] = useState(true);
+  const [hasMorePosts, setHasMorePosts] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
-  const [loadProgress, setLoadProgress] = useState(0);
-  const loaderRef = useRef<HTMLDivElement>(null);
-  const progressTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const [scrollProgress, setScrollProgress] = useState(0);
+  const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const openLightbox = (url: string, type: 'image' | 'video') => {
     setLightboxMediaUrl(url);
@@ -98,70 +94,50 @@ export const Feed = () => {
       .in('entity_id', postIds);
     
     if (data) {
-      setLikedPostIds(prev => new Set([...prev, ...data.map(d => d.entity_id)]));
+      setLikedPostIds(prev => {
+        const newSet = new Set(prev);
+        data.forEach(d => newSet.add(d.entity_id));
+        return newSet;
+      });
     }
   };
 
-  const buildPostQuery = () => {
+  const loadPosts = async (pageIndex = 0) => {
+    if (pageIndex === 0) setIsLoadingMore(false); // Initial load isn't "loading more"
+    
     let query = supabase.from('posts').select('*, profiles(*)').order('created_at', { ascending: false });
+    
     if (FOLLOW_ONLY_FEED && user) {
-      // This part requires a join or a function, but for simplicity we'll pre-fetch follows
-      // This is not ideal for performance but matches the previous logic.
-      // A better approach would be an RPC call.
-      return (async () => {
-        const { data: following } = await supabase
-          .from('follows')
-          .select('following_id')
-          .eq('follower_id', user.id);
+      const { data: following } = await supabase
+        .from('follows')
+        .select('following_id')
+        .eq('follower_id', user.id);
 
-        const followingIds = following?.map(f => f.following_id) || [];
-        const allowedIds = [...followingIds, user.id];
-        
-        return query.in('user_id', allowedIds);
-      })();
+      const followingIds = following?.map(f => f.following_id) || [];
+      const allowedIds = [...followingIds, user.id];
+
+      query = query.in('user_id', allowedIds);
     }
-    return Promise.resolve(query);
-  };
 
-  const loadInitialPosts = async () => {
-    setIsLoading(true);
-    setPage(0);
-    
-    let query = await buildPostQuery();
-    const { data } = await query.range(0, POST_PAGE_SIZE - 1);
-    
+    // Pagination Logic
+    const from = pageIndex * POSTS_PER_PAGE;
+    const to = from + POSTS_PER_PAGE - 1;
+    query = query.range(from, to);
+
+    const { data } = await query;
     const loadedPosts = data || [];
-    setPosts(loadedPosts);
-    setHasMore(loadedPosts.length === POST_PAGE_SIZE);
-    
-    if (loadedPosts.length > 0) {
-      fetchUserLikes(loadedPosts);
+
+    if (loadedPosts.length < POSTS_PER_PAGE) {
+      setHasMorePosts(false);
     }
-    setIsLoading(false);
-  };
 
-  const loadMorePosts = async () => {
-    if (isLoadingMore || !hasMore) return;
-
-    setIsLoadingMore(true);
-    setLoadProgress(0); // Reset progress after triggering
-    
-    const nextPage = page + 1;
-    const from = nextPage * POST_PAGE_SIZE;
-    const to = (nextPage + 1) * POST_PAGE_SIZE - 1;
-    
-    let query = await buildPostQuery();
-    const { data } = await query.range(from, to);
-    
-    const newPosts = data || [];
-    
-    if (newPosts.length > 0) {
-      setPosts(prev => [...prev, ...newPosts]);
-      fetchUserLikes(newPosts);
+    if (pageIndex === 0) {
+      setPosts(loadedPosts);
+    } else {
+      setPosts(prev => [...prev, ...loadedPosts]);
     }
     
-    setHasMore(newPosts.length === POST_PAGE_SIZE);
-    setPage(nextPage);
+    fetchUserLikes(loadedPosts);
     setIsLoadingMore(false);
   };
 
@@ -178,7 +154,7 @@ export const Feed = () => {
 
     setPosts(current => current.map(p => {
       if (p.id === post.id) {
-        return { ...p, like_count: isLiked ? ((p.like_count || 0) - 1) : ((p.like_count || 0) + 1) };
+        return { ...p, like_count: isLiked ? (p.like_count - 1) : (p.like_count + 1) };
       }
       return p;
     }));
@@ -241,9 +217,9 @@ export const Feed = () => {
     setIsPostingComment(false);
   };
 
-  // Initial load and subscriptions
   useEffect(() => {
-    loadInitialPosts();
+    // Initial load
+    loadPosts(0);
 
     const channel = supabase.channel('public:posts').on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'posts' }, async (payload) => {
       if (FOLLOW_ONLY_FEED && user) {
@@ -270,55 +246,55 @@ export const Feed = () => {
       if (scrolled && isExpanded) setIsExpanded(false);
       setHasScrolled(scrolled);
     };
+
+    // Logic for "Scroll and Hold" interaction
+    const handleScrollInteraction = () => {
+      if (!hasMorePosts || isLoadingMore) return;
+
+      const scrollContainer = document.documentElement;
+      // Check if user is at the bottom (with a small buffer)
+      const isAtBottom = window.innerHeight + window.scrollY >= scrollContainer.offsetHeight - 50;
+
+      if (isAtBottom) {
+        setScrollProgress(prev => {
+          // Increment progress. We want 5 seconds total. 
+          // Assuming scroll events fire frequently, we increment slowly.
+          // 100% / (5000ms) * time_between_events. 
+          // Simplified: Increment by 0.5 on every event check.
+          const next = prev + 0.8; 
+          if (next >= 100) {
+            // Trigger load
+            setIsLoadingMore(true);
+            setPage(p => {
+              const nextPage = p + 1;
+              loadPosts(nextPage);
+              return nextPage;
+            });
+            return 0;
+          }
+          return next;
+        });
+
+        // Reset timer if user stops scrolling
+        if (scrollTimeoutRef.current) clearTimeout(scrollTimeoutRef.current);
+        scrollTimeoutRef.current = setTimeout(() => {
+          setScrollProgress(0);
+        }, 200); // Reset if no scroll event for 200ms
+      }
+    };
+
     window.addEventListener('scroll', handleScroll);
+    window.addEventListener('wheel', handleScrollInteraction);
+    window.addEventListener('touchmove', handleScrollInteraction);
+    
     return () => {
       supabase.removeChannel(channel);
       window.removeEventListener('scroll', handleScroll);
+      window.removeEventListener('wheel', handleScrollInteraction);
+      window.removeEventListener('touchmove', handleScrollInteraction);
+      if (scrollTimeoutRef.current) clearTimeout(scrollTimeoutRef.current);
     };
-  }, [user, isExpanded]);
-
-  // "Scroll and hold" Intersection Observer logic
-  useEffect(() => {
-    const observer = new IntersectionObserver(([entry]) => {
-      if (entry.isIntersecting && !isLoadingMore && hasMore) {
-        // Start timer
-        if (progressTimerRef.current) clearInterval(progressTimerRef.current);
-        progressTimerRef.current = setInterval(() => {
-          setLoadProgress(prev => {
-            const increment = (100 / (LOAD_MORE_DURATION_MS / LOAD_MORE_INTERVAL_MS));
-            const next = prev + increment;
-            
-            if (next >= 100) {
-              clearInterval(progressTimerRef.current!);
-              progressTimerRef.current = null;
-              loadMorePosts();
-              return 0;
-            }
-            return next;
-          });
-        }, LOAD_MORE_INTERVAL_MS);
-      } else {
-        // Not intersecting or loading: reset
-        if (progressTimerRef.current) {
-          clearInterval(progressTimerRef.current);
-          progressTimerRef.current = null;
-        }
-        setLoadProgress(0);
-      }
-    }, { threshold: 0.5 }); // Trigger when 50% visible
-
-    if (loaderRef.current && hasMore) {
-      observer.observe(loaderRef.current);
-    }
-
-    return () => {
-      observer.disconnect();
-      if (progressTimerRef.current) {
-        clearInterval(progressTimerRef.current);
-      }
-    };
-  }, [isLoadingMore, hasMore, loadMorePosts]); // Dependencies updated
-
+  }, [user, isExpanded, hasMorePosts, isLoadingMore, page]); // Added necessary deps
 
   const createPost = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -414,7 +390,7 @@ export const Feed = () => {
   };
 
   return (
-    <div className="max-w-2xl mx-auto">
+    <div className="max-w-2xl mx-auto relative pb-24">
       <div ref={scrollRef} className="sticky top-0 z-40 bg-[rgb(var(--color-surface))] border-b border-[rgb(var(--color-border))] shadow-sm">
         {isExpanded ? (
           <form onSubmit={createPost} className="p-4 space-y-3">
@@ -508,13 +484,7 @@ export const Feed = () => {
       </div>
 
       <div>
-        {isLoading && posts.length === 0 && (
-          <div className="text-center py-12 text-[rgb(var(--color-text-secondary))]">
-            Loading posts...
-          </div>
-        )}
-
-        {!isLoading && posts.length === 0 && (
+        {posts.length === 0 && !isLoadingMore && (
           <div className="text-center py-12 text-[rgb(var(--color-text-secondary))]" >
             {FOLLOW_ONLY_FEED ? 'No posts from people you follow yet.' : 'No posts yet. Be the first!'}
           </div>
@@ -584,7 +554,8 @@ export const Feed = () => {
                     >
                       <Heart size={18} fill={likedPostIds.has(post.id) ? "currentColor" : "none"} />
                     </button>
-                    {(post.like_count ?? 0) > 0 && (
+                    {/* Counts are visible unless 0 or null */}
+                    {(post.like_count > 0) && (
                       <button 
                         onClick={(e) => { e.stopPropagation(); openLikesList(post.id); }}
                         className="text-sm text-[rgb(var(--color-text-secondary))] hover:underline"
@@ -601,7 +572,8 @@ export const Feed = () => {
                     >
                       <MessageCircle size={18} />
                     </button>
-                    {(post.comment_count ?? 0) > 0 && (
+                     {/* Counts are visible unless 0 or null */}
+                    {(post.comment_count > 0) && (
                       <button 
                         onClick={(e) => { e.stopPropagation(); openCommentsList(post.id); }}
                         className="text-sm text-[rgb(var(--color-text-secondary))] hover:underline"
@@ -617,28 +589,27 @@ export const Feed = () => {
         ))}
       </div>
 
-      {/* "Scroll and hold" Loader */}
-      <div ref={loaderRef} className="h-24 py-8">
-        {hasMore && (
-          <div className="flex justify-center items-center h-full">
-            <div className="relative w-72 h-10 bg-[rgb(var(--color-surface-hover))] rounded-full overflow-hidden shadow-inner border border-[rgb(var(--color-border))]">
+      {/* Scroll Breaker & End Message */}
+      {posts.length > 0 && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-30 flex flex-col items-center gap-2">
+          {!hasMorePosts ? (
+            <div className="bg-[rgb(var(--color-surface))] border border-[rgb(var(--color-border))] px-4 py-2 rounded-full shadow-lg text-sm text-[rgb(var(--color-text-secondary))]">
+              You have seen all posts from people you follow currently.
+            </div>
+          ) : (
+            <div className="relative overflow-hidden bg-[rgb(var(--color-surface))] border border-[rgb(var(--color-border))] shadow-xl rounded-full w-64 h-10 flex items-center justify-center select-none">
               <div 
-                className="absolute top-0 left-0 h-full bg-[rgba(var(--color-accent),1)] transition-all"
-                style={{ width: `${loadProgress}%`, transitionDuration: loadProgress === 0 ? '0ms' : `${LOAD_MORE_INTERVAL_MS}ms` }}
+                className="absolute left-0 top-0 h-full bg-[rgb(var(--color-accent))] opacity-20 transition-all duration-75 ease-linear"
+                style={{ width: `${scrollProgress}%` }}
               />
-              <span className="absolute inset-0 flex items-center justify-center text-sm font-medium text-[rgb(var(--color-text))] z-10">
-                {isLoadingMore ? 'Loading...' : 'Scroll and hold to reveal more'}
+              <span className="relative z-10 text-sm font-semibold text-[rgb(var(--color-text))] flex items-center gap-2">
+                {isLoadingMore ? <Loader2 size={16} className="animate-spin" /> : null}
+                {isLoadingMore ? 'Loading more...' : 'Scroll and hold to reveal more'}
               </span>
             </div>
-          </div>
-        )}
-        {!hasMore && posts.length > 0 && !isLoading && (
-          <div className="text-center text-[rgb(var(--color-text-secondary))]">
-            {FOLLOW_ONLY_FEED ? 'You have seen all posts from people you follow currently.' : 'You have seen all posts.'}
-          </div>
-        )}
-      </div>
-
+          )}
+        </div>
+      )}
 
       {/* Lightbox */}
       {showLightbox && lightboxMediaUrl && (
@@ -770,7 +741,7 @@ export const Feed = () => {
                 <input
                   type="text"
                   value={newCommentText}
-                  onChange={(e) => setNewCommentText(e.g.target.value)}
+                  onChange={(e) => setNewCommentText(e.target.value)}
                   placeholder="Add a comment..."
                   className="flex-1 bg-transparent border-none outline-none text-sm text-[rgb(var(--color-text))]"
                   autoFocus
