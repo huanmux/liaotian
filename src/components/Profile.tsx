@@ -2,7 +2,7 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { supabase, Profile as ProfileType, Post, uploadMedia } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
-import { BadgeCheck, Edit2, Check, MessageCircle, X, UserMinus, Paperclip, FileText, Settings as SettingsIcon, MoreVertical, Trash2, Camera, Crop, Heart, Link, Send, Image, Grid, ThumbsUp } from 'lucide-react';
+import { BadgeCheck, Edit2, Check, MessageCircle, X, UserMinus, Paperclip, FileText, Settings as SettingsIcon, MoreVertical, Trash2, Camera, Crop, Heart, Link, Send, LayoutGrid, Grid, ThumbsUp } from 'lucide-react';
 
 // Define the type for the crop result, simplifying for this context
 type CropResult = {
@@ -248,7 +248,7 @@ export const Profile = ({ userId, onMessage, onSettings }: { userId?: string; on
    * Helper function to handle direct upload of files (like GIFs) that don't need cropping.
    */
   const handleDirectUpload = async (file: File, type: 'avatar' | 'banner') => {
-    setIsCropping(false); // temporarily disable due to errors
+    setIsCropping(true);
     try {
         const result = await uploadMedia(file, 'profiles');
         if (result) {
@@ -955,7 +955,7 @@ export const Profile = ({ userId, onMessage, onSettings }: { userId?: string; on
             : 'text-[rgb(var(--color-text-secondary))] hover:bg-[rgb(var(--color-surface-hover))]'
           }`}
         >
-          <Image size={18} />
+          <LayoutGrid size={18} />
           Posts
         </button>
         <button 
