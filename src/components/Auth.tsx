@@ -229,9 +229,11 @@ export const Auth = () => {
       <div className="w-full max-w-md z-10">
         <div className="bg-white/95 backdrop-blur-2xl rounded-3xl shadow-2xl p-10 border border-white/40">
           <div className="text-center mb-10">
-            <h1 className="text-6xl font-black bg-gradient-to-r from-red-600 via-orange-500 to-red-700 bg-clip-text text-transparent mb-3">
-              聊天
-            </h1>
+            <img 
+              src="https://mux8.com/assets/logo/liaotian-dragon.svg" 
+              alt="LiaoTian logo"
+              className="mx-auto w-40 h-40 mb-1"
+            />
             <p className="text-gray-700 text-xl font-bold">LiaoTian</p>
           </div>
 
