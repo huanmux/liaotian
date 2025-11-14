@@ -59,9 +59,9 @@ export const uploadMedia = async (
   }
 
   const ext = file.name.split('.').pop()?.toLowerCase() || '';
-  const validImage = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
+  const validImage = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg','bmp'];
   const validVideo = ['mp4', 'webm', 'mov', 'avi'];
-  const validDoc = ['pdf', 'doc', 'docx', 'txt', 'json','rtf','exe','zip'];
+  const validDoc = ['pdf', 'doc', 'docx', 'txt', 'json','rtf','exe','zip','mp3','ogg','wav'];
 
   let type: string;
   if (validImage.includes(ext)) type = 'image';
