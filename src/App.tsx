@@ -235,7 +235,7 @@ const Main = () => {
         </div>
       </nav>
 
-      <main className="h-[95vh] overflow-auto">
+      <main className="h-[90vh] overflow-auto">
         {view === 'feed' && <Feed />}
         {view === 'messages' && <Messages />}
         {view === 'profile' && (
