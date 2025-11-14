@@ -423,7 +423,7 @@ export const Feed = () => {
     <div className="max-w-2xl mx-auto">
       {/* COMPOSER - Only visible when Posts tab is active */}
       {activeTab === 'posts' && (
-      <div ref={scrollRef} className="sticky top-0 z-40 bg-[rgb(var(--color-surface))] border-b border-[rgb(var(--color-border))] shadow-sm">
+      <div ref={scrollRef} className="bg-[rgb(var(--color-surface))] border-b border-[rgb(var(--color-border))] shadow-sm">
         {isExpanded ? (
           <form onSubmit={createPost} className="p-4 space-y-3">
             <textarea
