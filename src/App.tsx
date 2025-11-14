@@ -174,7 +174,7 @@ const Main = () => {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-[rgb(var(--color-background))]">
+    <div className="min-h-screen bg-[rgb(var(--color-background))]">
       <nav className="bg-[rgb(var(--color-surface))] border-b border-[rgb(var(--color-border))] sticky top-0 z-50 shadow-sm">
         <div className="max-w-6xl mx-auto flex items-center justify-between px-4 h-14">
           <h1 className="text-2xl font-black bg-gradient-to-r from-[rgba(var(--color-primary),1)] via-[rgba(var(--color-accent),1)] to-[rgba(var(--color-primary),1)] bg-clip-text text-transparent">
@@ -235,7 +235,7 @@ const Main = () => {
         </div>
       </nav>
 
-      <main className="flex-1">
+      <main className="h-[95vh] overflow-auto">
         {view === 'feed' && <Feed />}
         {view === 'messages' && <Messages />}
         {view === 'profile' && (
