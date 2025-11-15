@@ -43,13 +43,10 @@ const Main = () => {
           return; // Let page routing handle other paths
       }
 
-      if (!username || username.includes('/') || username.includes('.')) {
-        // Only return if there's no username; if there is, we want to show the profile
-        // If we are on '/' and no username, page routing will handle it.
-        // If we are on '/user' and no username, page routing will handle it.
-        if (!username) {
-            return; 
-        }
+      if (!username || username.includes('/')) {
+        // If no username or invalid format, just return.
+        // The other useEffect will handle setting view to 'feed'.
+        return;
       }
 
       try {
@@ -83,7 +80,7 @@ const Main = () => {
         const username = search.startsWith('?') ? search.slice(1) : search;
         // If a username is present, the Profile lookup useEffect will handle it.
         // We just need to ensure we don't clobber it by setting view to 'feed'.
-        if (username && !username.includes('/') && !username.includes('.')) {
+        if (username && !username.includes('/')) {
             // Profile lookup is running or will run. Don't set view('feed').
             return;
         }
@@ -98,7 +95,7 @@ const Main = () => {
     // Handle /message?username
     if (path === '/message') {
         const username = search.startsWith('?') ? search.slice(1) : search;
-        if (username && !username.includes('/') && !username.includes('.')) {
+        if (username && !username.includes('/')) {
             const lookupAndMessage = async () => {
                 try {
                     // Check if user is logged in
@@ -118,7 +115,10 @@ const Main = () => {
                         setView('messages');
                         setSelectedProfileId(undefined);
                         // This event is heard by Messages.tsx
-                        window.dispatchEvent(new CustomEvent('openDirectMessage', { detail: data }));
+                        // Wrap in timeout to ensure listener is attached
+                        setTimeout(() => {
+                          window.dispatchEvent(new CustomEvent('openDirectMessage', { detail: data }));
+                        }, 0);
                     } else {
                         // No user found, default to feed
                         setView('feed');
@@ -265,7 +265,10 @@ const Main = () => {
   const handleMessageUser = (profile: any) => {
     setView('messages');
     setSelectedProfileId(undefined);
-    window.dispatchEvent(new CustomEvent('openDirectMessage', { detail: profile }));
+    // Wrap in timeout to ensure listener is attached after view switch
+    setTimeout(() => {
+      window.dispatchEvent(new CustomEvent('openDirectMessage', { detail: profile }));
+    }, 0);
   };
 
   const handleSettings = () => {
