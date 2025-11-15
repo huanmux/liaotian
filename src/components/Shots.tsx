@@ -174,6 +174,24 @@ export const Shots = () => {
     if (data) setCommentsList(data as Comment[]);
   };
 
+  const fetchLikers = useCallback(async (postId: string) => {
+    const { data } = await supabase
+      .from('likes')
+      .select('user_id, profiles(username, display_name, avatar_url, verified)')
+      .eq('post_id', postId)
+      .order('created_at', { ascending: true });
+      
+    if (data) {
+      setLikersList(data as Liker[]);
+    }
+  }, []);
+
+  const showLikes = useCallback((postId: string) => {
+    setActiveCommentsId(null); // Close comments if open
+    setActiveLikesId(postId); // Open likes modal
+    fetchLikers(postId);
+  }, [fetchLikers]);
+
   const handlePostComment = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user || !activeCommentsId || !newCommentText.trim()) return;
@@ -252,7 +270,12 @@ export const Shots = () => {
                     className={likedPostIds.has(video.id) ? "fill-red-500 text-red-500" : "text-white"} 
                   />
                 </button>
-                <span className="text-white text-xs font-bold shadow-black drop-shadow-md">{video.like_count}</span>
+                <span 
+                  onClick={() => showLikes(video.id)}
+                  className="text-white text-xs font-bold mt-1 cursor-pointer hover:underline"
+                >
+                  {video.likes?.[0]?.count || 0}
+                </span>
               </div>
 
               <div className="flex flex-col items-center gap-1">
@@ -262,7 +285,12 @@ export const Shots = () => {
                 >
                   <MessageCircle size={28} className="text-white" />
                 </button>
-                <span className="text-white text-xs font-bold shadow-black drop-shadow-md">{video.comment_count}</span>
+                <span 
+                  onClick={() => openComments(video.id)}
+                  className="text-white text-xs font-bold mt-1 cursor-pointer hover:underline"
+                >
+                  {video.comments?.[0]?.count || 0}
+                </span>
               </div>
 
               <button className="p-3 bg-white/10 backdrop-blur-sm rounded-full transition active:scale-90">
@@ -320,6 +348,46 @@ export const Shots = () => {
                ))}
              </div>
            </div>
+        </div>
+      )}
+
+      {activeLikesId && (
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80"
+          onClick={() => setActiveLikesId(null)}
+        >
+          <div 
+            className="bg-[rgb(var(--color-surface))] w-full max-w-md max-h-[80vh] rounded-2xl flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex justify-between items-center p-4 border-b border-[rgb(var(--color-border))]">
+              <h2 className="text-xl font-bold text-[rgb(var(--color-text))]">
+                Liked by
+              </h2>
+              <button onClick={() => setActiveLikesId(null)} className="text-[rgb(var(--color-text-secondary))] hover:text-[rgb(var(--color-text))]">
+                <X size={24} />
+              </button>
+            </div>
+            
+            <div className="flex-1 overflow-y-auto p-4">
+              {likersList.length === 0 ? (
+                <p className="text-[rgb(var(--color-text-secondary))] text-center py-4">No likes yet.</p>
+              ) : (
+                likersList.map((liker) => (
+                  <div key={liker.user_id} className="flex items-center gap-3 py-2 border-b border-[rgb(var(--color-border))] last:border-b-0">
+                    <img src={liker.profiles.avatar_url} className="w-10 h-10 rounded-full" alt={`${liker.profiles.username}'s avatar`} />
+                    <div>
+                      <span className="font-bold text-sm text-[rgb(var(--color-text))] flex items-center">
+                        {liker.profiles.display_name}
+                        {liker.profiles.verified && <BadgeCheck size={14} className="ml-1 text-[rgb(var(--color-accent))]" fill="currentColor" />}
+                      </span>
+                      <span className="text-xs text-[rgb(var(--color-text-secondary))]">@{liker.profiles.username}</span>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
         </div>
       )}
 
