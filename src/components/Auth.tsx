@@ -234,7 +234,7 @@ export const Auth = () => {
               alt="LiaoTian logo"
               className="mx-auto w-40 h-40 mb-1"
             />
-            <p className="text-gray-700 text-xl font-bold">LiaoTian</p>
+            <p className="text-gray-700 text-xl font-bold">Liaoverse</p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-6">
@@ -312,7 +312,7 @@ export const Auth = () => {
               ) : (
                 <LogIn size={28} />
               )}
-              {isLoading ? 'Loading...' : (isSignUp ? 'Join LiaoTian' : 'Enter LiaoTian')}
+              {isLoading ? 'Loading...' : (isSignUp ? 'Join Liaoverse' : 'Enter Liaoverse')}
             </button>
           </form>
 
