@@ -322,20 +322,12 @@ if (loading) {
 
     return (
     <div className={`flex min-h-screen bg-[rgb(var(--color-background))] ${isMobile ? '' : 'flex-row'}`}>
-      {!isMobile && (
-        <StatusSidebar 
-          show={true} 
-          onClose={() => {}} 
-          setView={setView}
-          view={view}
-        />
-      )}
       <div className="flex-1 flex flex-col min-w-0">
         <nav className="bg-[rgb(var(--color-surface))] border-b border-[rgb(var(--color-border))] sticky top-0 z-50 shadow-sm flex-shrink-0">
           <div className="max-w-6xl mx-auto flex items-center justify-between px-4 h-14">
             <h1 
               onClick={() => setShowSidebar(!showSidebar)} 
-              className="text-l font-black bg-gradient-to-r from-[rgba(var(--color-primary),1)] via-[rgba(var(--color-accent),1)] to-[rgba(var(--color-primary),1)] bg-clip-text text-transparent cursor-pointer sm:cursor-default sm:pointer-events-none"
+              className="text-l font-black bg-gradient-to-r from-[rgba(var(--color-primary),1)] via-[rgba(var(--color-accent),1)] to-[rgba(var(--color-primary),1)] bg-clip-text text-transparent cursor-pointer"
             >
               Liaoverse
             </h1>
@@ -395,14 +387,12 @@ if (loading) {
           </div>
         </nav>
 
-        {isMobile && (
           <StatusSidebar 
             show={showSidebar} 
             onClose={() => setShowSidebar(false)} 
             setView={setView}
             view={view}
           />
-        )}
 
         <main className="h-[90vh] overflow-auto flex-1">
           {view === 'feed' && <Feed />}
