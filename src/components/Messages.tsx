@@ -1085,7 +1085,7 @@ export const Messages = () => {
                   </div>
               )}
 
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1">
                 <button
                   type="button"
                   onClick={(e) => {
@@ -1096,7 +1096,7 @@ export const Messages = () => {
                   title="Attach file or link"
                   disabled={isRecording}
                 >
-                  <Paperclip size={22} />
+                  <Paperclip size={20} />
                 </button>
                 
                 <button
@@ -1110,7 +1110,7 @@ export const Messages = () => {
                   title={isRecording ? "Stop recording" : "Start voice message"}
                   disabled={isUploading}
                 >
-                  <Mic size={22} />
+                  <Mic size={20} />
                 </button>
 
                 <input
@@ -1127,7 +1127,7 @@ export const Messages = () => {
                   disabled={isUploading || isRecording || (!content.trim() && !file && !remoteUrl.trim())}
                   className={`p-2 rounded-full transition ${isUploading || isRecording || (!content.trim() && !file && !remoteUrl.trim()) ? 'bg-[rgb(var(--color-border))] text-[rgb(var(--color-text-secondary))]' : 'bg-[rgba(var(--color-accent),1)] text-[rgb(var(--color-text-on-primary))] hover:bg-[rgba(var(--color-primary),1)]'}`}
                 >
-                  <Send size={24} />
+                  <Send size={20} />
                 </button>
               </div>
             </form>
