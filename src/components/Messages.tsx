@@ -312,7 +312,7 @@ export const Messages = () => {
         media_type = 'image';
       } else if (remoteUrl.match(/\.(mp4|webm|mov|avi)$/i)) {
         media_type = 'video';
-      } else if (remoteUrl.match(/\.(mp3|wav|ogg|m4a)$/i)) {
+      } else if (remoteUrl.match(/\.(mp3|wav|ogg|m4a|weba)$/i)) {
         media_type = 'audio';
       } else {
         media_type = 'document';
