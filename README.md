@@ -2,7 +2,7 @@
 easy-to-host social platforms for everyone
 
 ```
-Current version: 1.0.8
+Current version: 1.0.8A
 ```
 
 ### What makes LiaoTian (LT) so special from already existing social media/networking platforms?
@@ -51,10 +51,10 @@ If you just want to create an account on **Liaoverse** (our official deployment)
 - [x] Web visitor analytics via Vercel
 - [x] Posting on Status (similar to FB/IG story) + view detecting and replying via Messages logic
 - [x] Status archive
+- [ ] Notification system (with "clear all" button to easily clear from database, too)
 - [ ] Embed links
 - [ ] Create and manage groups
 - [ ] Posting long-form content, e.g. blogs
-- [ ] Notification system (with "clear all" button to easily clear from database, too)
 - [ ] Hashtags
 - [ ] Custom sounds, e.g. notifications, clicks, etc.
 - [ ] Reactions for messages
@@ -68,14 +68,12 @@ If you just want to create an account on **Liaoverse** (our official deployment)
 - [ ] Live streaming (from story? like early IG?)
 
 
-
 ## 🚨 Current flaws
 - [ ] Cookie “__cf_bm” has been rejected for invalid domain. Browser console error logs sometimes.
 - [ ] removing a follower from own Profile doesn't make changes to database for some reason
 - [ ] Messaging section soft errors (406, 4XX)
 - [ ] message replies don't show text content for some reason
 - [ ] audio and video calling may require a turn server
-- [ ] posting video type Status gets skipped/crashes
 
 ---
 
