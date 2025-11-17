@@ -72,7 +72,6 @@ If you just want to create an account on **Liaoverse** (our official deployment)
 
 ## 🚨 Current flaws
 - [ ] Cookie “__cf_bm” has been rejected for invalid domain. Browser console error logs sometimes.
-- [ ] removing a follower from own Profile doesn't make changes to database for some reason
 - [ ] audio and video calling may require a turn server
 
 ---
