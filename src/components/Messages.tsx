@@ -887,15 +887,20 @@ export const Messages = () => {
                           <p className="text-xs opacity-90 truncate whitespace-pre-wrap break-words">
                             {repliedToMsg.content ? repliedToMsg.content : (
                               <span className="flex items-center gap-1 italic opacity-80">
-                                {repliedToMsg.media_type === 'image' && <Paperclip size={12} className="inline-block" />}
-                                {repliedToMsg.media_type === 'image' && 'Image'}
-                                {repliedToMsg.media_type === 'video' && <Paperclip size={12} className="inline-block" />}
-                                {repliedToMsg.media_type === 'video' && 'Video'}
-                                {repliedToMsg.media_type === 'audio' && <Mic size={12} className="inline-block" />}
-                                {repliedToMsg.media_type === 'audio' && 'Voice Message'}
-                                {repliedToMsg.media_type === 'document' && <FileText size={12} className="inline-block" />}
-                                {repliedToMsg.media_type === 'document' && 'File'}
-                                {!repliedToMsg.content && !repliedToMsg.media_type && '[Message]'}
+                                {repliedToMsg.media_type === 'image' && (
+                                  <><Paperclip size={12} className="inline-block" /> Image</>
+                                )}
+                                {repliedToMsg.media_type === 'video' && (
+                                  <><Paperclip size={12} className="inline-block" /> Video</>
+                                )}
+                                {repliedToMsg.media_type === 'audio' && (
+                                  <><Mic size={12} className="inline-block" /> Voice Message</>
+                                )}
+                                {repliedToMsg.media_type === 'document' && (
+                                  <><FileText size={12} className="inline-block" /> File</>
+                                )}
+                                {/* This condition is now correct */}
+                                {!repliedToMsg.media_type && '[Message]'}
                               </span>
                             )}
                           </p>
@@ -993,15 +998,20 @@ export const Messages = () => {
                     <p className="text-sm text-[rgb(var(--color-text))] truncate mt-0.5">
                       {replyingTo.content ? replyingTo.content : (
                         <span className="flex items-center gap-1 italic opacity-80">
-                          {replyingTo.media_type === 'image' && <Paperclip size={12} className="inline-block" />}
-                          {replyingTo.media_type === 'image' && 'Image'}
-                          {replyingTo.media_type === 'video' && <Paperclip size={12} className="inline-block" />}
-                          {replyingTo.media_type === 'video' && 'Video'}
-                          {replyingTo.media_type === 'audio' && <Mic size={12} className="inline-block" />}
-                          {replyingTo.media_type === 'audio' && 'Voice Message'}
-                          {replyingTo.media_type === 'document' && <FileText size={12} className="inline-block" />}
-                          {replyingTo.media_type === 'document' && 'File'}
-                          {!replyingTo.content && !replyingTo.media_type && '[Message]'}
+                          {replyingTo.media_type === 'image' && (
+                            <><Paperclip size={12} className="inline-block" /> Image</>
+                          )}
+                          {replyingTo.media_type === 'video' && (
+                            <><Paperclip size={12} className="inline-block" /> Video</>
+                          )}
+                          {replyingTo.media_type === 'audio' && (
+                            <><Mic size={12} className="inline-block" /> Voice Message</>
+                          )}
+                          {replyingTo.media_type === 'document' && (
+                            <><FileText size={12} className="inline-block" /> File</>
+                          )}
+                          {/* This condition is now correct */}
+                          {!replyingTo.media_type && '[Message]'}
                         </span>
                       )}
                     </p>
