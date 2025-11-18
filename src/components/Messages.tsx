@@ -565,7 +565,7 @@ export const Messages = ({
 
     const { data: messagesData, count } = await supabase
       .from('messages')
-      .select('*, sender:profiles!sender_id(*), recipient:profiles!recipient_id(*), reactions(*, profiles(*))', { count: 'exact' })
+      .select('id, sender_id, recipient_id, content, created_at, media_url, media_type, read, reply_to_id', { count: 'exact' })
       .or(
         `and(sender_id.eq.${user!.id},recipient_id.eq.${recipientId}),and(sender_id.eq.${recipientId},recipient_id.eq.${user!.id})`
       )
@@ -621,7 +621,7 @@ export const Messages = ({
 
     const { data: messagesData, count } = await supabase
       .from('messages')
-      .select('*, sender:profiles!sender_id(*), recipient:profiles!recipient_id(*), reactions(*, profiles(*))', { count: 'exact' })
+      .select('id, sender_id, recipient_id, content, created_at, media_url, media_type, read, reply_to_id', { count: 'exact' })
       .or(
         `and(sender_id.eq.${user!.id},recipient_id.eq.${selectedUser.id}),and(sender_id.eq.${selectedUser.id},recipient_id.eq.${user!.id})`
       )
@@ -1159,7 +1159,6 @@ export const Messages = ({
                                 <button
                                     key={reaction.emoji}
                                     onClick={() => handleReaction(msg.id, reaction.emoji)}
-                                    // ADDED: Title to show list of users (Hover popup)
                                     title={`Reacted by: ${reaction.userProfiles.map(p => p.display_name || 'User').join(', ')}`}
                                     className={`flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] border transition ${
                                         reaction.hasReacted 
