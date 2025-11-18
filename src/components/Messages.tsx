@@ -1,5 +1,5 @@
 // src/components/Messages.tsx
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { supabase, Message, Profile, uploadMedia } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { Send, BadgeCheck, Search, ArrowLeft, X, Paperclip, FileText, Link, CornerUpLeft, Phone, Video, Mic, Play, Pause, Check, CheckCheck, MessageSquare, Users, Smile } from 'lucide-react';
