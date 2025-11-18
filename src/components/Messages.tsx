@@ -759,7 +759,7 @@ export const Messages = ({
         <Calls />
         
         {/* Mobile Tab Switcher - Fixed Position for Visibility */}
-        <div className="md:hidden flex-shrink-0 px-2 pt-12 pb-2 bg-[rgb(var(--color-surface))] border-b border-[rgb(var(--color-border))] flex gap-2 z-50 sticky top-0">
+        <div className="md:hidden flex-shrink-0 p-2 bg-[rgb(var(--color-surface))] border-b border-[rgb(var(--color-border))] flex gap-2 z-50">
           <button 
             onClick={() => setActiveTab('chats')} 
             className="flex-1 p-2 rounded font-bold text-sm bg-[rgb(var(--color-surface-hover))] text-[rgb(var(--color-text-secondary))]"
@@ -810,23 +810,22 @@ export const Messages = ({
       {/* SIDEBAR */}
       <div className={`w-full md:w-96 bg-[rgb(var(--color-surface))] border-r border-[rgb(var(--color-border))] flex-shrink-0 flex flex-col transition-transform duration-300 ease-in-out ${showSidebar ? 'translate-x-0' : '-translate-x-full md:translate-x-0'} md:relative fixed inset-y-0 left-0 z-40 md:z-auto`}>
         
-        {/* Header with Tabs */}
-        <div className="p-4 border-b border-[rgb(var(--color-border))] sticky top-0 bg-[rgb(var(--color-surface))] z-10">
-          {/* Tab Switcher */}
-          <div className="flex gap-2 mb-4 bg-[rgb(var(--color-surface-hover))] p-1 rounded-lg">
-             <button 
-                onClick={() => setActiveTab('chats')}
-                className={`flex-1 py-1.5 text-sm font-bold rounded-md transition ${activeTab === 'chats' ? 'bg-[rgb(var(--color-background))] shadow text-[rgb(var(--color-text))]' : 'text-[rgb(var(--color-text-secondary))] hover:text-[rgb(var(--color-text))]'}`}
-             >
-                Chats
-             </button>
-             <button 
-                onClick={() => setActiveTab('gazebos')}
-                className={`flex-1 py-1.5 text-sm font-bold rounded-md transition ${activeTab === 'gazebos' ? 'bg-[rgb(var(--color-background))] shadow text-[rgb(var(--color-text))]' : 'text-[rgb(var(--color-text-secondary))] hover:text-[rgb(var(--color-text))]'}`}
-             >
-                Gazebos
-             </button>
-          </div>
+        <div className="px-4 pt-16 md:pt-4 border-b border-[rgb(var(--color-border))] sticky top-0 bg-[rgb(var(--color-surface))] z-10">
+          {/* Tab Switcher */}
+          <div className="flex gap-2 mb-4 bg-[rgb(var(--color-surface-hover))] p-1 rounded-lg">
+             <button 
+                onClick={() => setActiveTab('chats')}
+                className={`flex-1 py-1.5 text-sm font-bold rounded-md transition ${activeTab === 'chats' ? 'bg-[rgb(var(--color-background))] shadow text-[rgb(var(--color-text))]' : 'text-[rgb(var(--color-text-secondary))] hover:text-[rgb(var(--color-text))]'}`}
+             >
+                Chats
+             </button>
+             <button 
+                onClick={() => setActiveTab('gazebos')}
+                className={`flex-1 py-1.5 text-sm font-bold rounded-md transition ${activeTab === 'gazebos' ? 'bg-[rgb(var(--color-background))] shadow text-[rgb(var(--color-text))]' : 'text-[rgb(var(--color-text-secondary))] hover:text-[rgb(var(--color-text))]'}`}
+             >
+                Gazebos
+             </button>
+          </div>
 
           <h2 className="text-2xl font-extrabold text-[rgb(var(--color-text))] mb-4">Chats</h2>
           <div className="relative">
