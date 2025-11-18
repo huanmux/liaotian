@@ -625,19 +625,15 @@ export const Gazebos = ({ initialInviteCode, onInviteHandled, initialGazeboId }:
       if (!user) return;
       const existing = msg.reactions?.find(r => r.user_id === user.id && r.emoji === emoji);
       if (existing) {
-          // Unreact
           await supabase.from('message_reactions').delete().eq('id', existing.id);
       } else {
-          // React (using upsert to prevent 409 conflicts)
-          await supabase.from('message_reactions').upsert({
+          await supabase.from('message_reactions').insert({
               message_id: msg.id,
               user_id: user.id,
               emoji: emoji,
               message_type: 'gazebo'
-          }, { onConflict: 'message_id, user_id, emoji', ignoreDuplicates: true });
+          });
       }
-      
-      // Close the emoji picker if it was open
       setShowReactionMenuId(null);
   };
 
@@ -937,16 +933,10 @@ export const Gazebos = ({ initialInviteCode, onInviteHandled, initialGazeboId }:
                                                       <button
                                                           key={emoji}
                                                           onClick={() => toggleReaction(msg, emoji)}
-                                                          // ADDED: Simple tooltip
-                                                          title={hasReacted ? "You reacted (Click to remove)" : "Click to add"}
-                                                          className={`flex items-center gap-1 px-1.5 py-0.5 rounded text-xs border transition ${
-                                                              hasReacted 
-                                                              ? 'bg-[rgba(var(--color-primary),0.2)] border-[rgb(var(--color-primary))] text-[rgb(var(--color-primary))]' 
-                                                              : 'bg-[rgb(var(--color-surface-hover))] border-transparent hover:border-[rgb(var(--color-border))] text-[rgb(var(--color-text-secondary))]'
-                                                          }`}
+                                                          className={`flex items-center gap-1 px-1.5 py-0.5 rounded text-xs border ${hasReacted ? 'bg-[rgba(var(--color-primary),0.2)] border-[rgb(var(--color-primary))]' : 'bg-[rgb(var(--color-surface-hover))] border-transparent hover:border-[rgb(var(--color-border))]'}`}
                                                       >
                                                           <span>{emoji}</span>
-                                                          <span className="font-bold">{count}</span>
+                                                          <span className={hasReacted ? 'font-bold text-[rgb(var(--color-primary))]' : 'text-[rgb(var(--color-text-secondary))]'}>{count}</span>
                                                       </button>
                                                   ))}
                                               </div>
