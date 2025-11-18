@@ -54,6 +54,34 @@ export type Status = {
   profiles?: Profile;
 };
 
+export type Gazebo = {
+  id: string;
+  name: string;
+  type: 'group' | 'guild';
+  owner_id: string;
+  icon_url: string;
+  created_at: string;
+};
+
+export type GazeboChannel = {
+  id: string;
+  gazebo_id: string;
+  name: string;
+  type: 'text' | 'voice';
+};
+
+export type GazeboMessage = {
+  id: string;
+  channel_id: string;
+  user_id: string;
+  content: string;
+  media_url: string;
+  media_type: 'image' | 'video' | 'document' | 'audio';
+  created_at: string;
+  sender?: Profile; // We will join this manually or via view
+  reply_to?: GazeboMessage | null;
+};
+
 // === STORAGE HELPERS ===
 const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100 MB
 
