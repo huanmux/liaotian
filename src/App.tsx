@@ -27,6 +27,7 @@ const Main = () => {
   const [selectedProfileId, setSelectedProfileId] = useState<string | undefined>();
   const [showSearch, setShowSearch] = useState(false);
   const [pendingGazeboInvite, setPendingGazeboInvite] = useState<string | null>(null);
+  const [initialTab, setInitialTab] = useState<'chats' | 'gazebos'>('chats');
   
   const { user, profile, loading, signOut } = useAuth();
   const location = useLocation();
@@ -37,22 +38,23 @@ const Main = () => {
   const [unreadNotifications, setUnreadNotifications] = useState(0);
   const [showNotifications, setShowNotifications] = useState(false);
 
-  // === Auto-join via /invite/:code ===
+  // === NEW: Handle /gazebo route ===
   useEffect(() => {
-    // Matches /invite/CODE (8 chars)
-    const match = location.pathname.match(/^\/invite\/([a-zA-Z0-9-]{3,20})$/); 
+    const path = location.pathname;
+    // Matches /gazebo or /gazebo/UUID
+    const match = path.match(/^\/gazebo\/?([a-zA-Z0-9-]{0,})?$/);
     
     if (match && user) {
-      const code = match[1];
-      const joinGazebo = async () => {
-        // Pass this code to Messages -> Gazebos to handle the actual join logic and state update
-        setPendingGazeboInvite(code);
-        setView('messages');
-        navigate('/message'); 
-      };
-      joinGazebo();
+      const gazeboId = match[1];
+      setInitialTab('gazebos');
+      if (gazeboId) {
+        setPendingGazeboId(gazeboId);
+      }
+      setView('messages');
+      // Clean URL visually without reloading
+      window.history.replaceState({}, '', '/message'); 
     }
-  }, [location.pathname, user, navigate]);
+  }, [location.pathname, user]);
 
   // Set theme from profile
   useEffect(() => {
@@ -411,11 +413,13 @@ const Main = () => {
       <main className="h-[90vh] overflow-auto">
         {view === 'feed' && <Feed />}
         {view === 'messages' && (
-		    <Messages 
-		        initialInviteCode={pendingGazeboInvite} 
-		        onInviteHandled={() => setPendingGazeboInvite(null)} 
-		    />
-		)}
+            <Messages 
+                initialInviteCode={pendingGazeboInvite} 
+                onInviteHandled={() => setPendingGazeboInvite(null)}
+                initialTab={initialTab}
+                initialGazeboId={pendingGazeboId}
+            />
+        )}
         {view === 'profile' && (
           <Profile userId={selectedProfileId} onMessage={handleMessageUser} onSettings={!selectedProfileId || selectedProfileId === user.id ? handleSettings : undefined} />
         )}
