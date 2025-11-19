@@ -5,24 +5,15 @@ import { useAuth } from '../contexts/AuthContext';
 import { 
   X, 
   Plus, 
-  Camera, 
-  Video, 
   ImageIcon, 
-  Type,
   BadgeCheck,
-  ChevronLeft, 
-  ChevronRight, 
   Archive, 
-  Home,
   Send,
-  Pause,
-  Play,
+  Check,     // For "Sent"
   RefreshCcw, // For flipping camera
   Eye,       // For view count
-  Check,     // For "Sent"
-  Radio,     // For recording button
 } from 'lucide-react';
-import { ProfileWithStatus } from '../lib/types'; // <-- Assume you create a types.ts file for this
+import { ProfileWithStatus } from '../lib/types'; 
 
 const FOLLOW_ONLY_FEED = import.meta.env.VITE_FOLLOW_ONLY_FEED === 'true';
 
@@ -640,7 +631,7 @@ const StatusCreator: React.FC<{ onClose: () => void }> = ({ onClose }) => {
 // =======================================================================
 //  3. STATUS VIEWER (AND SUB-COMPONENTS)
 //  Upgraded with "Viewed by" list, profile nav, and DM replies.
-//  FIXED: Image centering.
+//  FIXED: Image centering and audio.
 // =======================================================================
 
 // --- NEW: Time Ago Helper Function ---
@@ -1096,7 +1087,7 @@ const StatusViewer: React.FC<{
       </button>
 
       {/* Media Content */}
-      <div className="relative flex-1 w-full max-w-lg max-h-screen flex items-center justify-center overflow-hidden">
+      <div className="relative flex-1 w-full h-full max-w-lg max-h-screen flex items-center justify-center overflow-hidden bg-black">
         {isLoading && (
            <div className="p-4 flex flex-col items-center justify-center border-b border-[rgb(var(--color-border))]">
             <div className="logo-loading-container w-[50px] h-auto relative">
@@ -1137,13 +1128,13 @@ const StatusViewer: React.FC<{
         {/* FIXED: Added w-full h-full to image for perfect centering */}
         <img 
           src={currentStory.media_type === 'image' ? currentStory.media_url : ''} 
-          className={`w-full h-full object-contain transition-opacity ${currentStory.media_type === 'image' ? 'opacity-100' : 'opacity-0'}`} 
+          className={`w-full h-full object-contain mx-auto block transition-opacity ${currentStory.media_type === 'image' ? 'opacity-100' : 'opacity-0'}`} 
           alt="" 
         />
         
         <video
           ref={videoRef}
-          className={`max-w-full max-h-full object-contain transition-opacity ${currentStory.media_type === 'video' ? 'opacity-100' : 'opacity-0'}`}
+          className={`w-full h-full object-contain mx-auto block transition-opacity ${currentStory.media_type === 'video' ? 'opacity-100' : 'opacity-0'}`}
           playsInline
           onEnded={goToNextStory} // Keep as fallback
           onLoadedMetadata={(e) => { // <-- NEW: Get video duration
@@ -1157,7 +1148,6 @@ const StatusViewer: React.FC<{
              }
           }}
           onError={() => goToNextStory()}
-          muted
         />
 
         {overlay.text && (
@@ -1295,51 +1285,7 @@ export const StatusArchive: React.FC = () => {
 };
 
 // =======================================================================
-//  5. STATUS SIDEBAR
-// =======================================================================
-interface StatusSidebarProps {
-  show: boolean;
-  onClose: () => void;
-  setView: (view: any) => void;
-  view: string;
-}
-
-export const StatusSidebar: React.FC<StatusSidebarProps> = ({ show, onClose, setView, view }) => {
-  const menuItems = [
-    { icon: <Home size={20} />, label: 'Home', view: 'feed', onClick: () => { setView('feed'); onClose(); } },
-    { icon: <Archive size={20} />, label: 'Status Archive', view: 'archive', onClick: () => { setView('archive'); onClose(); } },
-  ];
-
-  return (
-    <>
-      <div 
-        className={`fixed inset-0 bg-black/50 z-[98] transition-opacity ${show ? 'opacity-100' : 'opacity-0 pointer-events-none'}`} 
-        onClick={onClose} 
-      />
-      <div className={`fixed left-0 top-0 h-full w-64 bg-[rgb(var(--color-surface))] border-r border-[rgb(var(--color-border))] z-[99] ${show ? 'translate-x-0' : '-translate-x-full'} transition-transform duration-300 shadow-lg flex-shrink-0`}>
-        <nav className="p-4 space-y-2 h-full flex flex-col">
-          {menuItems.map((item, idx) => (
-            <button
-              key={idx}
-              onClick={item.onClick}
-              className={`w-full flex items-center space-x-3 p-3 rounded-lg transition ${
-                view === item.view
-                  ? 'bg-[rgba(var(--color-primary),0.1)] text-[rgb(var(--color-primary))] font-bold'
-                  : 'text-[rgb(var(--color-text-secondary))] hover:bg-[rgb(var(--color-surface-hover))]'
-              }`}
-            >
-              {item.icon}
-              <span>{item.label}</span>
-            </button>
-          ))}
-        </nav>
-      </div>
-    </>
-  );
-};
-
-// =======================================================================
-//  6. GLOBAL MODAL CONTAINER
+//  5. GLOBAL MODAL CONTAINER
 // =======================================================================
 export const Status: React.FC = () => {
   const [showCreator, setShowCreator] = useState(false);
