@@ -3,7 +3,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase, Profile, Gazebo, GazeboChannel, GazeboMessage, uploadMedia } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import Peer from 'peerjs';
+import { GazeboVC } from './GazeboVC';
 import {
   Hash, Volume2, Plus, Settings, Users, X, Send, Paperclip, Mic, Link as LinkIcon,
   Trash2, Edit3, Copy, Crown, Shield, ChevronDown, Menu,
@@ -174,8 +174,7 @@ export const Gazebos = ({ initialInviteCode, onInviteHandled, initialGazeboId }:
 
   // Voice State
   const [voiceConnected, setVoiceConnected] = useState<{channelId: string, name: string} | null>(null);
-  const [localStream, setLocalStream] = useState<MediaStream | null>(null);
-  const [peers, setPeers] = useState<Record<string, VoicePeer>>({}); // peerId -> VoicePeer
+  const [vcMinimized, setVcMinimized] = useState(false);
   
   // Refs
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -259,103 +258,6 @@ export const Gazebos = ({ initialInviteCode, onInviteHandled, initialGazeboId }:
 
     return () => { supabase.removeChannel(channelSub); };
   }, [activeGazebo?.id]);
-
-  // --- Voice Channel Logic (PeerJS Mesh) ---
-  useEffect(() => {
-    return () => {
-        if (voicePeerRef.current) {
-            voicePeerRef.current.destroy();
-            voicePeerRef.current = null;
-        }
-        if (localStream) {
-            localStream.getTracks().forEach(t => t.stop());
-        }
-        if (voicePresenceRef.current) {
-            voicePresenceRef.current.unsubscribe();
-        }
-    };
-  }, []);
-
-  useEffect(() => {
-      if (!voiceConnected || !user) {
-          if (voicePeerRef.current) {
-              voicePeerRef.current.destroy();
-              voicePeerRef.current = null;
-          }
-          if (localStream) {
-              localStream.getTracks().forEach(t => t.stop());
-              setLocalStream(null);
-          }
-          setPeers({});
-          return;
-      }
-
-      const initVoice = async () => {
-          try {
-              const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
-              setLocalStream(stream);
-
-              const myPeerId = `${user.id}-voice`;
-              const peer = new Peer(myPeerId);
-              voicePeerRef.current = peer;
-
-              peer.on('open', () => {
-                  const channel = supabase.channel(`voice:${voiceConnected.channelId}`);
-                  voicePresenceRef.current = channel;
-
-                  channel.on('presence', { event: 'sync' }, () => {
-                      const state = channel.presenceState();
-                      const presentUsers = Object.values(state).flat() as any[];
-                      
-                      presentUsers.forEach((u: any) => {
-                          if (u.peerId !== myPeerId && !peers[u.peerId]) {
-                              if (myPeerId > u.peerId) {
-                                  const call = peer.call(u.peerId, stream);
-                                  handlePeerCall(call, u.peerId, u.user_id);
-                              }
-                          }
-                      });
-                  }).subscribe(async (status) => {
-                      if (status === 'SUBSCRIBED') {
-                          await channel.track({ user_id: user.id, peerId: myPeerId });
-                      }
-                  });
-              });
-
-              peer.on('call', (call) => {
-                  call.answer(stream);
-                  const callerUserId = call.peer.replace('-voice', '');
-                  handlePeerCall(call, call.peer, callerUserId);
-              });
-
-              peer.on('error', (err) => console.error('Voice Peer Error:', err));
-
-          } catch (err) {
-              console.error("Failed to join voice:", err);
-              setVoiceConnected(null);
-              alert("Could not access microphone.");
-          }
-      };
-
-      initVoice();
-
-  }, [voiceConnected, user]);
-
-  const handlePeerCall = (call: Peer.MediaConnection, peerId: string, userId: string) => {
-      call.on('stream', (remoteStream) => {
-          setPeers(prev => ({
-              ...prev,
-              [peerId]: { peerId, userId, stream: remoteStream, call }
-          }));
-      });
-      call.on('close', () => {
-          setPeers(prev => {
-              const newPeers = { ...prev };
-              delete newPeers[peerId];
-              return newPeers;
-          });
-      });
-  };
 
   // --- Chat Messages & Subs ---
   useEffect(() => {
@@ -779,23 +681,6 @@ export const Gazebos = ({ initialInviteCode, onInviteHandled, initialGazeboId }:
               ))}
           </div>
 
-          {voiceConnected && (
-              <div className="border-t border-[rgb(var(--color-border))] bg-[rgba(var(--color-surface-hover),0.5)] p-2">
-                  <div className="flex items-center justify-between">
-                      <div className="flex flex-col">
-                          <span className="text-green-500 text-xs font-bold">Voice Connected</span>
-                          <span className="text-xs text-[rgb(var(--color-text-secondary))]">{voiceConnected.name} / {activeGazebo?.name}</span>
-                      </div>
-                      <button onClick={() => setVoiceConnected(null)} className="p-2 hover:bg-[rgb(var(--color-surface))] rounded-full text-red-500">
-                          <PhoneOff size={16} />
-                      </button>
-                  </div>
-                  {/* Invisible audio elements for peers */}
-                  {Object.values(peers).map(p => (
-                      p.stream && <audio key={p.peerId} ref={el => { if(el) el.srcObject = p.stream!; }} autoPlay />
-                  ))}
-              </div>
-          )}
 
           <div className="p-2 bg-[rgb(var(--color-surface-hover))] flex items-center gap-2 border-t border-[rgb(var(--color-border))]">
                <img 
@@ -1320,6 +1205,21 @@ export const Gazebos = ({ initialInviteCode, onInviteHandled, initialGazeboId }:
                   </div>
               </div>
           </div>
+      )}
+
+      {/* === VOICE CHANNEL OVERLAY === */}
+      {voiceConnected && user && (
+        <GazeboVC 
+          channelId={voiceConnected.channelId}
+          channelName={voiceConnected.name}
+          user={user}
+          onDisconnect={() => {
+             setVoiceConnected(null);
+             setVcMinimized(false);
+          }}
+          isMinimized={vcMinimized}
+          onToggleMinimize={() => setVcMinimized(!vcMinimized)}
+        />
       )}
 
     </div>
