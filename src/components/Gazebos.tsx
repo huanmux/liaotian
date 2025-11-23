@@ -9,7 +9,7 @@ import {
   Hash, Volume2, Plus, Settings, Users, X, Send, Paperclip, Mic, Link as LinkIcon,
   Trash2, Edit3, Copy, Crown, Shield, ChevronDown, Menu,
   FileText, LogOut, Image as ImageIcon, Play, Pause,
-  PhoneOff, UserMinus, ShieldAlert, CornerUpLeft, Video, Smile, BadgeCheck
+  PhoneOff, UserMinus, ShieldAlert, CornerUpLeft, Video, Smile, BadgeCheck, Folder, Film, Music, FileIcon
 } from 'lucide-react';
 
 const QUICK_EMOJIS = ['👍', '❤️', '😂', '😮', '😢', '💀'];
@@ -257,6 +257,75 @@ export const Gazebos = ({ initialInviteCode, onInviteHandled, initialGazeboId }:
   const isAdmin = isOwner || memberRole === 'admin';
 
   const PAGE_SIZE = 20;
+
+  // --- MEDIA GALLERY STATE ---
+  const [showMediaGallery, setShowMediaGallery] = useState(false);
+  const [galleryTab, setGalleryTab] = useState<'image' | 'video' | 'audio' | 'document'>('image');
+  const [galleryMedia, setGalleryMedia] = useState<AppGazeboMessage[]>([]);
+  const [isGalleryLoading, setIsGalleryLoading] = useState(false);
+
+  const loadGalleryMedia = async () => {
+    if (!activeChannel) return;
+    setIsGalleryLoading(true);
+    
+    const { data } = await supabase
+      .from('gazebo_messages')
+      .select('*, sender:profiles(*)')
+      .eq('channel_id', activeChannel.id)
+      .not('media_url', 'is', null)
+      .neq('media_url', '')
+      .order('created_at', { ascending: false });
+
+    if (data) {
+        setGalleryMedia(data as AppGazeboMessage[]);
+    }
+    setIsGalleryLoading(false);
+  };
+
+  const middleTruncate = (str: string, len: number) => {
+    if (str.length <= len) return str;
+    const start = str.slice(0, Math.floor(len / 2));
+    const end = str.slice(-Math.floor(len / 2));
+    return `${start}...${end}`;
+  };
+
+  // Helper to render members list (reused for mobile modal)
+  const renderMembersList = () => (
+      ['owner', 'admin', 'member'].map(role => {
+          const roleMembers = members.filter(m => m.role === role);
+          if (roleMembers.length === 0) return null;
+          return (
+              <div key={role} className="mb-6">
+                  <h3 className="text-xs font-bold text-[rgb(var(--color-text-secondary))] uppercase mb-2">{role === 'owner' ? 'Owner' : role === 'admin' ? 'Admins' : 'Members'} — {roleMembers.length}</h3>
+                  {roleMembers.map(m => (
+                      <div 
+                        key={m.user_id} 
+                        className="group flex items-center gap-2 p-2 rounded hover:bg-[rgb(var(--color-surface-hover))] cursor-pointer opacity-90 hover:opacity-100 relative"
+                      >
+                          <div className="relative" onClick={() => setViewingProfile(m.profiles)}>
+                              <img src={m.profiles.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${m.profiles.username}`} className="w-8 h-8 rounded-full object-cover" />
+                              {isUserOnline(m.profiles.last_seen) && (
+                                  <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-500 border-2 border-[rgb(var(--color-surface))] rounded-full"></div>
+                              )}
+                          </div>
+                          <span className={`font-medium truncate flex-1`} style={{ color: role === 'owner' ? '#eab308' : role === 'admin' ? '#3b82f6' : 'inherit' }} onClick={() => setViewingProfile(m.profiles)}>{m.profiles.display_name}</span>
+                          {role === 'owner' && <Crown size={14} className="text-yellow-500" />}
+                          {role === 'admin' && <Shield size={14} className="text-blue-500" />}
+                          
+                          {isAdmin && m.user_id !== user?.id && m.role !== 'owner' && (
+                              <div className="absolute right-2 hidden group-hover:flex bg-[rgb(var(--color-surface))] border border-[rgb(var(--color-border))] rounded shadow-lg z-20">
+                                  <button title="Kick" onClick={() => kickMember(m.user_id)} className="p-1 hover:text-red-500"><UserMinus size={14}/></button>
+                                  {isOwner && (
+                                      <button title="Toggle Admin" onClick={() => updateMemberRole(m.user_id, m.role === 'admin' ? 'member' : 'admin')} className="p-1 hover:text-blue-500"><ShieldAlert size={14}/></button>
+                                  )}
+                              </div>
+                          )}
+                      </div>
+                  ))}
+              </div>
+          )
+      })
+  );
 
   // --- Initialization ---
 
@@ -841,6 +910,13 @@ export const Gazebos = ({ initialInviteCode, onInviteHandled, initialGazeboId }:
                           <span className="font-bold">{activeChannel.name}</span>
                       </div>
                       <div className="flex gap-4 text-[rgb(var(--color-text-secondary))]">
+                          <button 
+                             onClick={() => { setShowMediaGallery(true); loadGalleryMedia(); }} 
+                             className="hover:text-[rgb(var(--color-text))]"
+                             title="Channel Media"
+                          >
+                             <Folder size={24} />
+                          </button>
                           <button onClick={() => setShowMembersPanel(!showMembersPanel)} className={`${showMembersPanel ? 'text-[rgb(var(--color-text))]' : ''}`}><Users size={24}/></button>
                       </div>
                   </div>
@@ -1422,7 +1498,7 @@ export const Gazebos = ({ initialInviteCode, onInviteHandled, initialGazeboId }:
         </div>
       )}
 
-      {/* NEW: Reaction Details Modal */}
+      {/* Reaction Details Modal */}
       {viewingReactionsFor && (
         <div 
             className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
@@ -1459,6 +1535,155 @@ export const Gazebos = ({ initialInviteCode, onInviteHandled, initialGazeboId }:
                     ))}
                     {(!viewingReactionsFor.reactions || viewingReactionsFor.reactions.length === 0) && (
                         <div className="text-center p-4 text-[rgb(var(--color-text-secondary))]">No reactions yet</div>
+                    )}
+                </div>
+            </div>
+        </div>
+      )}
+
+      {/* MEDIA GALLERY MODAL */}
+      {showMediaGallery && (
+        <div 
+            className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4"
+            onClick={() => setShowMediaGallery(false)}
+        >
+            <div 
+                className="bg-[rgb(var(--color-surface))] w-full max-w-4xl h-[85vh] rounded-2xl shadow-2xl overflow-hidden border border-[rgb(var(--color-border))] flex flex-col"
+                onClick={e => e.stopPropagation()}
+            >
+                {/* Header */}
+                <div className="p-4 border-b border-[rgb(var(--color-border))] flex justify-between items-center bg-[rgb(var(--color-surface))]">
+                    <h3 className="font-bold text-xl text-[rgb(var(--color-text))]">Channel Media</h3>
+                    <button 
+                        onClick={() => setShowMediaGallery(false)}
+                        className="p-2 rounded-full hover:bg-[rgb(var(--color-surface-hover))] text-[rgb(var(--color-text-secondary))]"
+                    >
+                        <X size={24} />
+                    </button>
+                </div>
+
+                {/* Tabs */}
+                <div className="flex border-b border-[rgb(var(--color-border))] bg-[rgb(var(--color-surface))]">
+                    <button 
+                        onClick={() => setGalleryTab('image')}
+                        className={`flex-1 py-3 font-semibold flex items-center justify-center gap-2 transition ${galleryTab === 'image' ? 'text-[rgb(var(--color-accent))] border-b-2 border-[rgb(var(--color-accent))]' : 'text-[rgb(var(--color-text-secondary))] hover:bg-[rgb(var(--color-surface-hover))]'}`}
+                    >
+                        <ImageIcon size={18} /> Images
+                    </button>
+                    <button 
+                        onClick={() => setGalleryTab('video')}
+                        className={`flex-1 py-3 font-semibold flex items-center justify-center gap-2 transition ${galleryTab === 'video' ? 'text-[rgb(var(--color-accent))] border-b-2 border-[rgb(var(--color-accent))]' : 'text-[rgb(var(--color-text-secondary))] hover:bg-[rgb(var(--color-surface-hover))]'}`}
+                    >
+                        <Film size={18} /> Videos
+                    </button>
+                    <button 
+                        onClick={() => setGalleryTab('audio')}
+                        className={`flex-1 py-3 font-semibold flex items-center justify-center gap-2 transition ${galleryTab === 'audio' ? 'text-[rgb(var(--color-accent))] border-b-2 border-[rgb(var(--color-accent))]' : 'text-[rgb(var(--color-text-secondary))] hover:bg-[rgb(var(--color-surface-hover))]'}`}
+                    >
+                        <Music size={18} /> Audio
+                    </button>
+                    <button 
+                        onClick={() => setGalleryTab('document')}
+                        className={`flex-1 py-3 font-semibold flex items-center justify-center gap-2 transition ${galleryTab === 'document' ? 'text-[rgb(var(--color-accent))] border-b-2 border-[rgb(var(--color-accent))]' : 'text-[rgb(var(--color-text-secondary))] hover:bg-[rgb(var(--color-surface-hover))]'}`}
+                    >
+                        <FileText size={18} /> Files
+                    </button>
+                </div>
+
+                {/* Content */}
+                <div className="flex-1 overflow-y-auto p-4 bg-[rgb(var(--color-background))]">
+                    {isGalleryLoading ? (
+                        <div className="flex h-full items-center justify-center text-[rgb(var(--color-text-secondary))]">
+                            Loading media...
+                        </div>
+                    ) : (
+                        <>
+                            {galleryMedia.filter(m => m.media_type === galleryTab).length === 0 ? (
+                                <div className="flex h-full items-center justify-center text-[rgb(var(--color-text-secondary))] flex-col gap-2">
+                                    <Folder size={48} className="opacity-20" />
+                                    <span>No {galleryTab}s found</span>
+                                </div>
+                            ) : (
+                                <>
+                                    {/* GRID VIEW FOR IMAGES AND VIDEOS */}
+                                    {(galleryTab === 'image' || galleryTab === 'video') && (
+                                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+                                            {galleryMedia.filter(m => m.media_type === galleryTab).map(msg => (
+                                                <div key={msg.id} className="aspect-square relative group bg-[rgb(var(--color-surface))] rounded overflow-hidden">
+                                                    {galleryTab === 'image' ? (
+                                                        <a href={msg.media_url!} target="_blank" rel="noopener noreferrer" className="block w-full h-full">
+                                                            <img src={msg.media_url!} className="w-full h-full object-cover hover:opacity-90 transition" alt="Shared" />
+                                                        </a>
+                                                    ) : (
+                                                        <video src={msg.media_url!} className="w-full h-full object-cover" controls />
+                                                    )}
+                                                    <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent opacity-0 group-hover:opacity-100 transition p-2 pointer-events-none">
+                                                        <div className="text-[10px] text-white truncate">
+                                                            Sent by {msg.sender?.display_name}
+                                                        </div>
+                                                        <div className="text-[10px] text-gray-300">
+                                                            {new Date(msg.created_at).toLocaleDateString()}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+
+                                    {/* LIST VIEW FOR AUDIO */}
+                                    {galleryTab === 'audio' && (
+                                        <div className="space-y-3">
+                                            {galleryMedia.filter(m => m.media_type === galleryTab).map(msg => (
+                                                <div key={msg.id} className="flex items-center gap-3 p-3 bg-[rgb(var(--color-surface))] rounded-xl border border-[rgb(var(--color-border))]">
+                                                    <div className="w-10 h-10 rounded-full bg-[rgba(var(--color-accent),0.1)] flex items-center justify-center flex-shrink-0 text-[rgb(var(--color-accent))]">
+                                                        <Mic size={20} />
+                                                    </div>
+                                                    <div className="flex-1 min-w-0">
+                                                        <div className="flex justify-between items-center mb-1">
+                                                            <span className="text-xs text-[rgb(var(--color-text-secondary))]">
+                                                                {msg.sender?.display_name} • {new Date(msg.created_at).toLocaleString()}
+                                                            </span>
+                                                        </div>
+                                                        <AudioPlayer src={msg.media_url!} isOutgoing={false} />
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+
+                                    {/* LIST VIEW FOR FILES */}
+                                    {galleryTab === 'document' && (
+                                        <div className="space-y-2">
+                                            {galleryMedia.filter(m => m.media_type === galleryTab).map(msg => (
+                                                <a 
+                                                    key={msg.id} 
+                                                    href={msg.media_url!} 
+                                                    target="_blank" 
+                                                    rel="noopener noreferrer"
+                                                    className="flex items-center gap-3 p-3 bg-[rgb(var(--color-surface))] rounded-xl border border-[rgb(var(--color-border))] hover:bg-[rgb(var(--color-surface-hover))] transition group"
+                                                >
+                                                    <div className="w-10 h-10 rounded-lg bg-[rgba(var(--color-primary),0.1)] flex items-center justify-center flex-shrink-0 text-[rgb(var(--color-primary))]">
+                                                        <FileText size={20} />
+                                                    </div>
+                                                    <div className="flex-1 min-w-0">
+                                                        <p className="font-medium text-sm text-[rgb(var(--color-text))] truncate">
+                                                            {/* Middle truncate for long URLs/Filenames */}
+                                                            {msg.content || middleTruncate(msg.media_url!.split('/').pop() || 'Unknown File', 30)}
+                                                        </p>
+                                                        <p className="text-xs text-[rgb(var(--color-text-secondary))]">
+                                                            {new Date(msg.created_at).toLocaleDateString()} • Sent by {msg.sender?.display_name}
+                                                        </p>
+                                                    </div>
+                                                    <div className="p-2 text-[rgb(var(--color-text-secondary))] group-hover:text-[rgb(var(--color-accent))]">
+                                                        <LinkIcon size={18} />
+                                                    </div>
+                                                </a>
+                                            ))}
+                                        </div>
+                                    )}
+                                </>
+                            )}
+                        </>
                     )}
                 </div>
             </div>
