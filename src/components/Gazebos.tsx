@@ -1373,8 +1373,12 @@ export const Gazebos = ({ initialInviteCode, onInviteHandled, initialGazeboId }:
                           <button 
                              onClick={() => {
                                  setViewingProfile(null);
-                                 window.history.replaceState({}, '', `/message?${profile.username}`);
-                                 onMessage?.(profile);
+                                  // Update URL first
+                                  navigate(`/message?user=${targetProfile.username}`);
+                                  // Dispatch event so Messages component picks it up immediately without refresh
+                                  setTimeout(() => {
+                                      window.dispatchEvent(new CustomEvent('openDirectMessage', { detail: targetProfile }));
+                                  }, 100);
                              }}
                              className="flex-1 bg-[rgb(var(--color-primary))] text-white py-2 rounded font-medium text-sm"
                           >
