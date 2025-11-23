@@ -2,7 +2,7 @@
 easy-to-host social platforms for everyone
 
 ```
-Current version: 1.0.9C
+Current version: 1.0.9D
 ```
 
 ### What makes LiaoTian (LT) so special from already existing social media/networking platforms?
@@ -78,7 +78,7 @@ If you just want to create an account on **Liaoverse** (our official deployment)
 - [ ] audio and video calling may require a turn server
 - [ ] Current App.tsx URL param handling messes up non-conventional usernames (previous versions allowed them)
 - [ ] Messages width issues for message entries (especially with embeds)
-- [ ] Gazebo VC audio works only; video and screen sharing issues
+- [ ] Gazebo VC video and screen sharing issues (local works fine)
 
 ---
 
