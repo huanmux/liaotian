@@ -1373,7 +1373,7 @@ export const Gazebos = ({ initialInviteCode, onInviteHandled, initialGazeboId }:
                           <button 
                              onClick={() => {
                                  setViewingProfile(null);
-                                 navigate(`/?message=${viewingProfile.username}`);
+                                 navigate(`/message?user=${viewingProfile.username}`);
                              }}
                              className="flex-1 bg-[rgb(var(--color-primary))] text-white py-2 rounded font-medium text-sm"
                           >
