@@ -213,22 +213,36 @@ export const Messages = ({
     if (!user) return;
 
     const message = messages.find(m => m.id === messageId);
-    const existingReaction = message?.reactions?.find(r => r.user_id === user.id && r.emoji === emoji);
+    // CHANGE: Find ANY existing reaction by the user on this message (not just matching emoji)
+    const existingReaction = message?.reactions?.find(r => r.user_id === user.id);
 
-  if (existingReaction) {
-        await supabase.from('message_reactions').delete().eq('id', existingReaction.id);
+    if (existingReaction) {
+        if (existingReaction.emoji === emoji) {
+            // User clicked the same emoji -> Remove it (Toggle off)
+            await supabase.from('message_reactions').delete().eq('id', existingReaction.id);
+        } else {
+            // User clicked a different emoji -> Update existing reaction (One reaction per user)
+            await supabase.from('message_reactions')
+                .update({ emoji: emoji })
+                .eq('id', existingReaction.id);
+        }
     } else {
-        // FIX: Use upsert with ignoreDuplicates to handle existing reactions gracefully
-        await supabase.from('message_reactions').upsert({
+        // No reaction yet -> Insert new one
+        await supabase.from('message_reactions').insert({
             message_id: messageId,
             user_id: user.id,
             emoji: emoji,
             message_type: 'dm'
-        }, { onConflict: 'message_id, user_id, emoji', ignoreDuplicates: true });
+        });
     }
 
     setReactionMenu(null);
-}, [user, messages]);
+  }, [user, messages]);
+
+  // NEW: Helper to remove a specific reaction (used in Modal)
+  const handleRemoveReaction = async (reactionId: string) => {
+      await supabase.from('message_reactions').delete().eq('id', reactionId);
+  };
 
   // --- VOICE MESSAGE STATE ---
   const [isRecording, setIsRecording] = useState(false);
@@ -471,8 +485,16 @@ export const Messages = ({
                    }
                    return msg;
                }));
+               
+               // NEW: Update modal if it's open for this message
+               setViewingReactionsFor(prev => {
+                   if (prev && prev.id === messageId && prev.reactions) {
+                       return { ...prev, reactions: prev.reactions.filter(r => r.id !== oldReaction.id) };
+                   }
+                   return prev;
+               });
+
            } else if (payload.eventType === 'INSERT') {
-               // We need to fetch the full reaction data to get the profile relation
                const { data: reactionData } = await supabase
                    .from('message_reactions')
                    .select('*, profiles(id, username, display_name, avatar_url)')
@@ -483,13 +505,47 @@ export const Messages = ({
                    setMessages(prev => prev.map(msg => {
                        if (msg.id === messageId) {
                            const currentReactions = msg.reactions || [];
-                           // Avoid duplicates
                            if (currentReactions.some(r => r.id === reactionData.id)) return msg;
                            return { ...msg, reactions: [...currentReactions, reactionData] };
                        }
                        return msg;
                    }));
+                   
+                   // NEW: Update modal if open
+                   setViewingReactionsFor(prev => {
+                       if (prev && prev.id === messageId && prev.reactions) {
+                           if (prev.reactions.some(r => r.id === reactionData.id)) return prev;
+                           return { ...prev, reactions: [...prev.reactions, reactionData] };
+                       }
+                       return prev;
+                   });
                }
+           } else if (payload.eventType === 'UPDATE') {
+               // NEW: Handle UPDATE (switching emoji)
+               setMessages(prev => prev.map(msg => {
+                   if (msg.id === messageId && msg.reactions) {
+                       return {
+                           ...msg,
+                           reactions: msg.reactions.map(r => 
+                               r.id === newReaction.id ? { ...r, emoji: newReaction.emoji } : r
+                           )
+                       };
+                   }
+                   return msg;
+               }));
+
+               // NEW: Update modal if open
+               setViewingReactionsFor(prev => {
+                   if (prev && prev.id === messageId && prev.reactions) {
+                       return {
+                           ...prev,
+                           reactions: prev.reactions.map(r => 
+                               r.id === newReaction.id ? { ...r, emoji: newReaction.emoji } : r
+                           )
+                       };
+                   }
+                   return prev;
+               });
            }
         }
       )
@@ -924,7 +980,7 @@ export const Messages = ({
       {/* Reaction Menu Overlay (For adding new reactions) */}
       {reactionMenu && (
         <div 
-            className="fixed inset-0 z-50 pointer-events-none"
+            className="fixed inset-0 z-50" 
             onClick={() => setReactionMenu(null)}
             onContextMenu={(e) => { e.preventDefault(); setReactionMenu(null); }}
         >
@@ -980,7 +1036,7 @@ export const Messages = ({
                     <div className="p-2">
                         {/* We flatten all reactions into a single list for the modal */}
                         {viewingReactionsFor.reactions?.map(r => (
-                            <div key={r.id} className="flex items-center gap-3 p-3 hover:bg-[rgb(var(--color-surface-hover))] rounded-xl transition">
+                            <div key={r.id} className="flex items-center gap-3 p-3 hover:bg-[rgb(var(--color-surface-hover))] rounded-xl transition group">
                                 <div className="relative">
                                     <img 
                                         src={r.profiles?.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${r.profiles?.username}`} 
@@ -1000,6 +1056,20 @@ export const Messages = ({
                                         @{r.profiles?.username}
                                     </div>
                                 </div>
+                                
+                                {/* NEW: X button to remove own reaction */}
+                                {r.user_id === user?.id && (
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleRemoveReaction(r.id);
+                                        }}
+                                        className="opacity-0 group-hover:opacity-100 p-2 text-[rgb(var(--color-text-secondary))] hover:text-red-500 hover:bg-[rgb(var(--color-surface-hover))] rounded-full transition"
+                                        title="Remove reaction"
+                                    >
+                                        <X size={16} />
+                                    </button>
+                                )}
                             </div>
                         ))}
                     </div>
