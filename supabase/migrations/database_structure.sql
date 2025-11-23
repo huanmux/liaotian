@@ -1,6 +1,16 @@
 -- WARNING: This schema is for context only and is not meant to be run.
 -- Table order and constraints may not be valid for execution.
 
+CREATE TABLE public.active_voice_sessions (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  channel_id uuid NOT NULL,
+  user_id uuid NOT NULL,
+  peer_id text NOT NULL,
+  joined_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT active_voice_sessions_pkey PRIMARY KEY (id),
+  CONSTRAINT active_voice_sessions_channel_id_fkey FOREIGN KEY (channel_id) REFERENCES public.gazebo_channels(id),
+  CONSTRAINT active_voice_sessions_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.profiles(id)
+);
 CREATE TABLE public.comments (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   post_id uuid NOT NULL,
@@ -55,6 +65,16 @@ CREATE TABLE public.gazebo_members (
   CONSTRAINT gazebo_members_pkey PRIMARY KEY (gazebo_id, user_id),
   CONSTRAINT gazebo_members_gazebo_id_fkey FOREIGN KEY (gazebo_id) REFERENCES public.gazebos(id),
   CONSTRAINT gazebo_members_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.profiles(id)
+);
+CREATE TABLE public.gazebo_message_reactions (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  message_id uuid NOT NULL,
+  user_id uuid NOT NULL,
+  emoji text NOT NULL,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT gazebo_message_reactions_pkey PRIMARY KEY (id),
+  CONSTRAINT gazebo_message_reactions_message_id_fkey FOREIGN KEY (message_id) REFERENCES public.gazebo_messages(id),
+  CONSTRAINT gazebo_message_reactions_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.profiles(id)
 );
 CREATE TABLE public.gazebo_messages (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
