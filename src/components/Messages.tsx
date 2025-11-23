@@ -3,10 +3,16 @@ import { useEffect, useState, useRef, useCallback, lazy, Suspense } from 'react'
 import { supabase, Message, Profile, uploadMedia, MessageReaction } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { Send, BadgeCheck, Search, ArrowLeft, X, Paperclip, FileText, Link, CornerUpLeft, Phone, Video, Mic, Play, Pause, Check, CheckCheck, MessageSquare, Users, Smile } from 'lucide-react';
+import { MessageEmbed } from './MessageEmbed';
 
 // Lazy load components to prevent Circular Dependency ReferenceErrors ("Cannot access 'le' before initialization")
 const Calls = lazy(() => import('./Calls').then(module => ({ default: module.Calls })));
 const Gazebos = lazy(() => import('./Gazebos').then(module => ({ default: module.Gazebos })));
+const extractFirstUrl = (text: string): string | null => {
+  const urlRegex = /(https?:\/\/[^\s]+)/g;
+  const match = text.match(urlRegex);
+  return match ? match[0] : null;
+};
 
 const SVG_PATH = "M403.68 234.366c-3.681 5.618-30.224 30.851-40.724 38.713-25.347 18.983-38.394 24.776-77.79 34.544-23.062 5.718-26.126 6.76-29.666 10.087-7.857 7.384-13.863 11.247-21.384 13.752-9.789 3.259-12.116 5.672-12.116 12.558 0 3.825-.438 5.035-2.25 6.216-2.635 1.716-20.674 9.566-29.076 12.652l-5.825 2.141-2.971-2.116c-9.884-7.038-20.846.73-18.023 12.769 1.281 5.464 4.697 13.648 7.648 18.323 2.003 3.172 3.01 3.922 4.768 3.546 1.226-.263 4.254-.713 6.729-1.001 42.493-4.949 40.864-5.209 23.4 3.732-19.939 10.207-18.133 8.396-15.298 15.335 3.253 7.964 12.604 17.385 20.007 20.156l5.391 2.019.571-3.146c2.04-11.232 8.429-15.14 35.313-21.598l16.883-4.056 13.117 2.49c12.523 2.378 44.627 6.84 45.186 6.281.557-.557-2.339-3.496-10.071-10.22-12.342-10.734-11.967-10.234-8.194-10.934 3.07-.569 13.356.364 24.48 2.221 5.695.951 6.849 1.949 10.602 9.17 8.474 16.302 4.32 33.766-10.663 44.834-12.739 9.412-30.225 15.712-58.895 21.221-41.565 7.986-66.646 14.612-87.823 23.201-38.111 15.456-64.943 39.315-81.349 72.337-25.537 51.399-13.852 115.129 29.49 160.845 11.285 11.904 24.516 22.439 35.558 28.313 9.965 5.301 26.891 11.195 32.681 11.381l4.114.131-3.5.619-3.5.618 4.157 1.262c19.446 5.905 48.822 7.93 69.843 4.814 35.165-5.213 59.534-15.919 91.968-40.404 14.472-10.926 38.359-33.149 60.337-56.135 45.747-47.846 70.153-71.503 80.342-77.878C518.855 595.832 531.512 592 544 592c18.29 0 32.472 6.933 42.959 21 6.102 8.186 10.208 17.124 12.861 28 2.382 9.768 3.878 23.317 2.327 21.069-.752-1.088-1.147-.49-1.65 2.5-1.775 10.54-7.924 25.284-13.676 32.793-8.697 11.352-23.899 22.822-37.247 28.103-13.613 5.385-37.399 10.294-61.035 12.597-27.42 2.671-56.809 7.787-72.039 12.54-28.765 8.977-52.539 27.345-63.932 49.398-14.355 27.783-13.427 60.661 2.466 87.415 5.626 9.47 8.339 12.945 16.466 21.088 6.022 6.035 7.163 6.986 17.716 14.777 18.026 13.307 43.527 22.826 73.017 27.255 13.391 2.011 52.549 2.016 54.558.007.202-.202-2.256-.881-5.462-1.508-14.198-2.779-32.245-10.073-41.829-16.905-15.141-10.793-30.463-25.813-37.688-36.946-2.029-3.126-5.016-7.483-6.638-9.683C416.705 874.014 413 864.636 413 854.684c0-5.65 2.569-16.422 4.312-18.082 9.77-9.301 25.027-16.03 48.822-21.533 64.081-14.82 109.776-51.401 128.122-102.569 3.224-8.992 6.818-27.367 7.726-39.5l.71-9.5.154 9.583c.144 8.953-.301 12.954-2.993 26.917-1.404 7.286-7.125 23.019-11.09 30.5-1.749 3.3-3.649 7.009-4.222 8.242-.572 1.233-1.378 2.246-1.791 2.25s-.75.646-.75 1.425-.357 1.566-.793 1.75-1.887 2.133-3.226 4.333c-2.159 3.55-12.538 16.048-17.218 20.734-3.451 3.456-18.579 15.488-22.376 17.797-2.138 1.3-4.112 2.667-4.387 3.039-.275.371-5.9 3.4-12.5 6.731-16.549 8.351-30.523 13.68-47.732 18.205-2.602.684-4.477 1.656-4.166 2.16.312.503 1.316.689 2.232.412s8.641-1.213 17.166-2.081c40.585-4.13 69.071-9.765 92.5-18.298 15.33-5.583 37.661-18.554 50.945-29.591 10.296-8.554 25.124-24.582 33.34-36.037 3.374-4.704 13.526-23.941 16.397-31.071 2.83-7.028 5.649-16.706 8.011-27.5 1.966-8.988 2.293-13.308 2.27-30-.029-21.817-1.459-32.183-6.545-47.461-4.267-12.818-13.982-32.084-21.064-41.771-7.41-10.137-23.927-26.589-33.354-33.222-15.179-10.682-37.054-20.061-56.5-24.226-13.245-2.836-42.849-2.586-57.5.487-27.999 5.872-54.161 18.066-78.5 36.589-8.789 6.689-30.596 26.259-34.981 31.392-5.122 5.997-38.941 40.833-55.176 56.835-15.863 15.637-22.787 22.017-31.337 28.877-2.742 2.2-5.89 4.829-6.996 5.843-1.105 1.013-6.06 4.488-11.01 7.722s-9.45 6.242-10 6.686c-2.014 1.624-12.507 6.373-19.656 8.896-8.791 3.103-26.867 4.32-35.998 2.425-14.396-2.989-26.608-12.051-32.574-24.172-3.938-8-5.216-13.468-5.248-22.44-.05-14.406 4.83-25.419 16.415-37.046 8.018-8.047 15.344-13.02 27.453-18.636 13.664-6.337 24.699-9.76 68.608-21.281 23.61-6.195 53.403-16.746 65-23.02 37.251-20.151 62.371-49.521 70.969-82.977 3.164-12.312 4.368-32.296 2.62-43.5-2.675-17.153-11.273-37.276-22.004-51.5-10.94-14.501-29.977-30.241-43.244-35.755l-4.987-2.072 5.325-2.166c15.935-6.483 33.215-19.607 42.642-32.385 5.925-8.032 12.007-19.627 10.884-20.751-.359-.358-2.374.874-4.48 2.739-19.929 17.652-32.524 25.61-53.225 33.626-8.739 3.383-30.986 9.264-35.049 9.264-.617 0 2.629-2.521 7.214-5.602 21.853-14.688 39.424-33.648 49.197-53.085 2.254-4.483 7.638-17.828 7.638-18.932 0-1.228-1.997-.034-3.32 1.985m-9.601 249.217c.048 1.165.285 1.402.604.605.289-.722.253-1.585-.079-1.917s-.568.258-.525 1.312m-6.62 20.484c-.363.586-.445 1.281-.183 1.543s.743-.218 1.069-1.067c.676-1.762.1-2.072-.886-.476m207.291 56.656c1.788.222 4.712.222 6.5 0 1.788-.221.325-.403-3.25-.403s-5.038.182-3.25.403m13.333-.362c.23.199 3.117.626 6.417.949 3.811.374 5.27.268 4-.29-1.892-.832-11.303-1.427-10.417-.659M627 564.137c3.575 1.072 7.4 2.351 8.5 2.842 1.1.49 4.025 1.764 6.5 2.83 6.457 2.78 15.574 9.246 22.445 15.918 5.858 5.687 5.899 4.716.055-1.277-3.395-3.481-13.251-11.028-18.5-14.164-4.511-2.696-20.509-8.314-23.33-8.192-1.193.051.755.97 4.33 2.043M283.572 749.028c-2.161 1.635-3.511 2.96-3 2.945.945-.027 8.341-5.92 7.428-5.918-.275 0-2.268 1.338-4.428 2.973M264.5 760.049c-14.725 7.213-25.192 9.921-42 10.865-12.896.724-13.276.798-4.822.936 16.858.275 31.491-2.958 46.822-10.347 6.099-2.939 11.984-6.524 10.5-6.396-.275.023-5 2.247-10.5 4.942M435 897.859c0 1.77 20.812 21.955 28.752 27.887 10.355 7.736 27.863 16.301 40.248 19.691 11.885 3.254 27.788 4.339 38.679 2.641 15.915-2.483 42.821-11.687 56.321-19.268 4.671-2.624 21.633-13.314 22.917-14.443.229-.202.185-.599-.098-.882s-2.496.561-4.917 1.876c-8.642 4.692-29.216 11.343-44.402 14.354-7.013 1.391-13.746 1.775-30.5 1.738-19.299-.042-22.831-.32-34.5-2.724-25.415-5.234-48.507-14.972-66.207-27.92-5.432-3.973-6.293-4.377-6.293-2.95";
 const SVG_VIEWBOX = "0 0 784 1168";
@@ -204,29 +210,45 @@ export const Messages = ({
   const [mediaInputMode, setMediaInputMode] = useState<'file' | 'url' | null>(null);
 
   const [reactionMenu, setReactionMenu] = useState<{ messageId: string, x: number, y: number, isOutgoing: boolean } | null>(null);
-
+  // NEW: State to control the "Who Reacted" modal
+  const [viewingReactionsFor, setViewingReactionsFor] = useState<AppMessage | null>(null);
+  
   const { user } = useAuth();
 
   const handleReaction = useCallback(async (messageId: string, emoji: string) => {
     if (!user) return;
 
     const message = messages.find(m => m.id === messageId);
-    const existingReaction = message?.reactions?.find(r => r.user_id === user.id && r.emoji === emoji);
+    // CHANGE: Find ANY existing reaction by the user on this message (not just matching emoji)
+    const existingReaction = message?.reactions?.find(r => r.user_id === user.id);
 
-  if (existingReaction) {
-        await supabase.from('message_reactions').delete().eq('id', existingReaction.id);
+    if (existingReaction) {
+        if (existingReaction.emoji === emoji) {
+            // User clicked the same emoji -> Remove it (Toggle off)
+            await supabase.from('message_reactions').delete().eq('id', existingReaction.id);
+        } else {
+            // User clicked a different emoji -> Update existing reaction (One reaction per user)
+            await supabase.from('message_reactions')
+                .update({ emoji: emoji })
+                .eq('id', existingReaction.id);
+        }
     } else {
-        // FIX: Use upsert with ignoreDuplicates to handle existing reactions gracefully
-        await supabase.from('message_reactions').upsert({
+        // No reaction yet -> Insert new one
+        await supabase.from('message_reactions').insert({
             message_id: messageId,
             user_id: user.id,
             emoji: emoji,
             message_type: 'dm'
-        }, { onConflict: 'message_id, user_id, emoji', ignoreDuplicates: true });
+        });
     }
 
     setReactionMenu(null);
-}, [user, messages]);
+  }, [user, messages]);
+
+  // NEW: Helper to remove a specific reaction (used in Modal)
+  const handleRemoveReaction = async (reactionId: string) => {
+      await supabase.from('message_reactions').delete().eq('id', reactionId);
+  };
 
   // --- VOICE MESSAGE STATE ---
   const [isRecording, setIsRecording] = useState(false);
@@ -249,13 +271,19 @@ export const Messages = ({
 
   const markMessagesAsRead = async (senderId: string) => {
     if (!user) return;
-    supabase
+    
+    // Update DB
+    const { error } = await supabase
       .from('messages')
       .update({ read: true })
       .eq('recipient_id', user.id)
       .eq('sender_id', senderId)
-      .eq('read', false)
-      .then();
+      .eq('read', false);
+
+    // If successful, tell the rest of the app to update the badge
+    if (!error) {
+        window.dispatchEvent(new CustomEvent('messagesRead'));
+    }
   };
 
   const isUserOnline = (lastSeen: string | null | undefined): boolean => {
@@ -458,19 +486,37 @@ export const Messages = ({
         'postgres_changes',
         { event: '*', schema: 'public', table: 'message_reactions' },
         async (payload) => {
-           const newReaction = payload.new as any;
-           const oldReaction = payload.old as any;
-           const messageId = newReaction?.message_id || oldReaction?.message_id;
-
+           // Handle DELETE
            if (payload.eventType === 'DELETE') {
+               const oldReaction = payload.old as any;
+               
+               // Update Messages List
                setMessages(prev => prev.map(msg => {
-                   if (msg.id === messageId && msg.reactions) {
-                       return { ...msg, reactions: msg.reactions.filter(r => r.id !== oldReaction.id) };
+                   // Check if this message has the reaction being deleted
+                   if (msg.reactions?.some(r => r.id === oldReaction.id)) {
+                       return { 
+                           ...msg, 
+                           reactions: msg.reactions.filter(r => r.id !== oldReaction.id) 
+                       };
                    }
                    return msg;
                }));
-           } else if (payload.eventType === 'INSERT') {
-               // We need to fetch the full reaction data to get the profile relation
+               
+               // Update Modal if open
+               setViewingReactionsFor(prev => {
+                   if (prev && prev.reactions?.some(r => r.id === oldReaction.id)) {
+                       return { ...prev, reactions: prev.reactions.filter(r => r.id !== oldReaction.id) };
+                   }
+                   return prev;
+               });
+
+           } 
+           // Handle INSERT
+           else if (payload.eventType === 'INSERT') {
+               const newReaction = payload.new as any;
+               const messageId = newReaction.message_id;
+
+               // Fetch full profile data for the new reaction
                const { data: reactionData } = await supabase
                    .from('message_reactions')
                    .select('*, profiles(id, username, display_name, avatar_url)')
@@ -481,13 +527,58 @@ export const Messages = ({
                    setMessages(prev => prev.map(msg => {
                        if (msg.id === messageId) {
                            const currentReactions = msg.reactions || [];
-                           // Avoid duplicates
+                           // Prevent duplicates
                            if (currentReactions.some(r => r.id === reactionData.id)) return msg;
                            return { ...msg, reactions: [...currentReactions, reactionData] };
                        }
                        return msg;
                    }));
+                   
+                   // Update Modal if open
+                   setViewingReactionsFor(prev => {
+                       if (prev && prev.id === messageId && prev.reactions) {
+                           if (prev.reactions.some(r => r.id === reactionData.id)) return prev;
+                           return { ...prev, reactions: [...prev.reactions, reactionData] };
+                       }
+                       return prev;
+                   });
                }
+           } 
+           // Handle UPDATE (Emoji switch)
+           else if (payload.eventType === 'UPDATE') {
+               const newReaction = payload.new as any;
+               
+               // Update Messages List
+               setMessages(prev => prev.map(msg => {
+                   // Check if this message has the reaction being updated
+                   if (msg.reactions?.some(r => r.id === newReaction.id)) {
+                       return {
+                           ...msg,
+                           reactions: msg.reactions.map(r => 
+                               r.id === newReaction.id 
+                               // Only update the emoji, keep the existing profile data!
+                               ? { ...r, emoji: newReaction.emoji } 
+                               : r
+                           )
+                       };
+                   }
+                   return msg;
+               }));
+
+               // Update Modal if open
+               setViewingReactionsFor(prev => {
+                   if (prev && prev.reactions?.some(r => r.id === newReaction.id)) {
+                       return {
+                           ...prev,
+                           reactions: prev.reactions.map(r => 
+                               r.id === newReaction.id 
+                               ? { ...r, emoji: newReaction.emoji } 
+                               : r
+                           )
+                       };
+                   }
+                   return prev;
+               });
            }
         }
       )
@@ -549,6 +640,27 @@ export const Messages = ({
       sendTypingStatus(false);
       if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
     }
+  };
+
+  const handlePaste = (e: React.ClipboardEvent) => {
+    // 1. Handle Files (Images, etc)
+    if (e.clipboardData.files.length > 0) {
+      const pastedFile = e.clipboardData.files[0];
+      setFile(pastedFile);
+      setRemoteUrl(''); // Clear URL if file is prioritized
+      setMediaInputMode(null); // Reset input mode to default
+      e.preventDefault(); // Prevent default paste behavior (optional, depending on preference)
+      return;
+    }
+
+    // 2. Handle Text (Optional: If you want to detect remote image URLs in clipboard text)
+    /*
+    const pastedText = e.clipboardData.getData('text');
+    if (pastedText.match(/\.(jpeg|jpg|gif|png|webp)$/i) && isValidUrl(pastedText)) {
+         setRemoteUrl(pastedText);
+         // setMediaInputMode('url'); // Optional: switch UI to URL mode
+    }
+    */
   };
 
   const sendMessage = async (e: React.FormEvent) => {
@@ -619,10 +731,16 @@ export const Messages = ({
     setHasMoreMessages(true);
     setIsLoadingMore(false);
 
-    // UPDATED: Fetch all fields (*) and join reactions + their profiles
+    // FIX: Explicitly select reactions and the profile of the reactor
     const { data: messagesData, count } = await supabase
       .from('messages')
-      .select('id, sender_id, recipient_id, content, created_at, media_url, media_type, read, reply_to_id', { count: 'exact' })
+      .select(`
+        id, sender_id, recipient_id, content, created_at, media_url, media_type, read, reply_to_id,
+        reactions:message_reactions(
+          id, emoji, user_id,
+          profiles(id, username, display_name, avatar_url)
+        )
+      `, { count: 'exact' })
       .or(
         `and(sender_id.eq.${user!.id},recipient_id.eq.${recipientId}),and(sender_id.eq.${recipientId},recipient_id.eq.${user!.id})`
       )
@@ -676,10 +794,16 @@ export const Messages = ({
     const container = messagesContainerRef.current;
     const oldScrollHeight = container?.scrollHeight;
 
-    // UPDATED: Fetch all fields (*) and join reactions + their profiles
+    // FIX: Explicitly select reactions and the profile of the reactor for pagination too
     const { data: messagesData, count } = await supabase
       .from('messages')
-      .select('id, sender_id, recipient_id, content, created_at, media_url, media_type, read, reply_to_id', { count: 'exact' })
+      .select(`
+        id, sender_id, recipient_id, content, created_at, media_url, media_type, read, reply_to_id,
+        reactions:message_reactions(
+          id, emoji, user_id,
+          profiles(id, username, display_name, avatar_url)
+        )
+      `, { count: 'exact' })
       .or(
         `and(sender_id.eq.${user!.id},recipient_id.eq.${selectedUser.id}),and(sender_id.eq.${selectedUser.id},recipient_id.eq.${user!.id})`
       )
@@ -907,10 +1031,10 @@ export const Messages = ({
         <Calls />
       </Suspense>
       
-      {/* Reaction Menu Overlay */}
+      {/* Reaction Menu Overlay (For adding new reactions) */}
       {reactionMenu && (
         <div 
-            className="fixed inset-0 z-50 pointer-events-none"
+            className="fixed inset-0 z-50" 
             onClick={() => setReactionMenu(null)}
             onContextMenu={(e) => { e.preventDefault(); setReactionMenu(null); }}
         >
@@ -919,7 +1043,7 @@ export const Messages = ({
                 style={{ 
                     top: reactionMenu.y, 
                     left: reactionMenu.isOutgoing 
-                        ? reactionMenu.x - (reactionMenu.x > window.innerWidth / 2 ? 160 : 0) // Position based on outgoing
+                        ? reactionMenu.x - (reactionMenu.x > window.innerWidth / 2 ? 160 : 0) 
                         : reactionMenu.x
                 }}
                 onClick={e => e.stopPropagation()} 
@@ -929,7 +1053,6 @@ export const Messages = ({
                         key={emoji}
                         onClick={() => handleReaction(reactionMenu.messageId, emoji)}
                         className="text-2xl p-2 rounded-lg hover:bg-[rgb(var(--color-surface-hover))] transition"
-                        title={`React with ${emoji}`}
                     >
                         {emoji}
                     </button>
@@ -937,6 +1060,79 @@ export const Messages = ({
             </div>
         </div>
       )}
+
+      {/* NEW: Reaction Details Modal (Who reacted list) */}
+      {viewingReactionsFor && (
+        <div 
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60 backdrop-blur-sm p-4"
+            onClick={() => setViewingReactionsFor(null)}
+        >
+            <div 
+                className="bg-[rgb(var(--color-surface))] w-full max-w-sm rounded-2xl shadow-2xl overflow-hidden border border-[rgb(var(--color-border))]"
+                onClick={e => e.stopPropagation()}
+            >
+                <div className="p-4 border-b border-[rgb(var(--color-border))] flex justify-between items-center">
+                    <h3 className="font-bold text-[rgb(var(--color-text))]">Reactions</h3>
+                    <button 
+                        onClick={() => setViewingReactionsFor(null)}
+                        className="p-1 rounded-full hover:bg-[rgb(var(--color-surface-hover))] text-[rgb(var(--color-text-secondary))]"
+                    >
+                        <X size={20} />
+                    </button>
+                </div>
+                
+                <div className="max-h-[60vh] overflow-y-auto">
+                    {/* Render message snippet for context */}
+                    <div className="p-3 bg-[rgb(var(--color-surface-hover))] text-sm text-[rgb(var(--color-text-secondary))] truncate mx-4 mt-4 rounded-lg border border-[rgb(var(--color-border))] opacity-70">
+                         {viewingReactionsFor.content || (viewingReactionsFor.media_type ? `[${viewingReactionsFor.media_type}]` : 'Message')}
+                    </div>
+
+                    <div className="p-2">
+                        {/* We flatten all reactions into a single list for the modal */}
+                        {viewingReactionsFor.reactions?.map(r => (
+                            <div key={r.id} className="flex items-center gap-3 p-3 hover:bg-[rgb(var(--color-surface-hover))] rounded-xl transition group">
+                                <div className="relative">
+                                    <img 
+                                        src={r.profiles?.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${r.profiles?.username}`} 
+                                        alt={r.profiles?.username}
+                                        className="w-10 h-10 rounded-full object-cover bg-[rgb(var(--color-background))]" 
+                                    />
+                                    <div className="absolute -bottom-1 -right-1 text-lg leading-none drop-shadow-sm">
+                                        {r.emoji}
+                                    </div>
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                    <div className="font-semibold text-[rgb(var(--color-text))] flex items-center gap-1">
+                                        {r.profiles?.display_name || 'Unknown User'}
+                                        {r.user_id === user?.id && <span className="text-xs text-[rgb(var(--color-text-secondary))] font-normal">(You)</span>}
+                                    </div>
+                                    <div className="text-xs text-[rgb(var(--color-text-secondary))]">
+                                        @{r.profiles?.username}
+                                    </div>
+                                </div>
+                                
+                                {/* NEW: X button to remove own reaction */}
+                                {r.user_id === user?.id && (
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleRemoveReaction(r.id);
+                                        }}
+                                        className="opacity-0 group-hover:opacity-100 p-2 text-[rgb(var(--color-text-secondary))] hover:text-red-500 hover:bg-[rgb(var(--color-surface-hover))] rounded-full transition"
+                                        title="Remove reaction"
+                                    >
+                                        <X size={16} />
+                                    </button>
+                                )}
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            </div>
+        </div>
+      )}
+
+      {/* SIDEBAR */}
       
       {/* SIDEBAR */}
       <div className={`w-full md:w-96 bg-[rgb(var(--color-surface))] border-r border-[rgb(var(--color-border))] flex-shrink-0 flex flex-col transition-transform duration-300 ease-in-out ${showSidebar ? 'translate-x-0' : '-translate-x-full md:translate-x-0'} md:relative fixed inset-y-0 left-0 z-40 md:z-auto`}>
@@ -1192,6 +1388,12 @@ export const Messages = ({
                       </div>
                     )}
                     <p className="whitespace-pre-wrap break-words text-sm">{msg.content}</p>
+                    {/* NEW: Embed Section */}
+                    {/* Only show embed if there is content, a URL exists, and we aren't already showing a direct media attachment */}
+                    {msg.content && extractFirstUrl(msg.content) && !msg.media_url && (
+                        <MessageEmbed url={extractFirstUrl(msg.content)!} />
+                    )}
+                    
                     <div
                       className={`text-[10px] flex items-center justify-end mt-1.5 ${
                         msg.sender_id === user!.id ? 'text-[rgba(var(--color-text-on-primary),0.9)]' : 'text-[rgb(var(--color-text-secondary))]'
@@ -1210,14 +1412,17 @@ export const Messages = ({
                       )}
                     </div>
 
-                     {/* Reactions Display */}
+                 {/* Reactions Display */}
                      {msg.reactions && msg.reactions.length > 0 && (
                         <div className="flex flex-wrap gap-1 mt-2 -ml-1">
                             {groupReactions(msg.reactions, user!.id).map(reaction => (
                                 <button
                                     key={reaction.emoji}
-                                    onClick={() => handleReaction(msg.id, reaction.emoji)}
-                                    title={`Reacted by: ${reaction.userProfiles.map(p => p.display_name || 'User').join(', ')}`}
+                                    // CHANGE: OnClick now opens the modal (setViewingReactionsFor) instead of toggling immediate reaction
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        setViewingReactionsFor(msg);
+                                    }}
                                     className={`flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] border transition ${
                                         reaction.hasReacted 
                                             ? msg.sender_id === user!.id 
@@ -1435,6 +1640,7 @@ export const Messages = ({
                   placeholder={isRecording ? "Recording... (press mic to stop)" : "Type a message..."}
                   value={content}
                   onChange={handleInputChange}
+                  onPaste={handlePaste}
                   className="flex-1 px-4 py-2.5 border border-[rgb(var(--color-border))] rounded-full focus:outline-none focus:border-[rgb(var(--color-accent))] text-base bg-[rgb(var(--color-background))] text-[rgb(var(--color-text))]"
                   disabled={isRecording}
                 />

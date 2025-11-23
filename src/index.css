@@ -2,6 +2,11 @@
 @tailwind components;
 @tailwind utilities;
 
+
+body {
+ cursor: url('https://mux8.com/assets/image/cursor.cur'), auto;
+}
+
 /* ==========================================
  THEME CSS VARIABLES
  Defined using RGB values for opacity control (e.g., bg-[rgba(var(--color-primary),.1)])

@@ -100,7 +100,8 @@ CREATE TABLE public.message_reactions (
   emoji text NOT NULL,
   created_at timestamp with time zone DEFAULT now(),
   CONSTRAINT message_reactions_pkey PRIMARY KEY (id),
-  CONSTRAINT message_reactions_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.profiles(id)
+  CONSTRAINT message_reactions_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.profiles(id),
+  CONSTRAINT message_reactions_message_id_fkey FOREIGN KEY (message_id) REFERENCES public.messages(id)
 );
 CREATE TABLE public.messages (
   id uuid NOT NULL DEFAULT gen_random_uuid(),

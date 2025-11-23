@@ -223,6 +223,12 @@ const Main = () => {
 
     fetchCounts();
 
+    // NEW: Listen for the custom event dispatched from Messages.tsx
+    const handleMessagesRead = () => {
+        fetchCounts();
+    };
+    window.addEventListener('messagesRead', handleMessagesRead);
+
     const channel = supabase.channel(`user-notifications:${user.id}`);
     
     channel.on('postgres_changes', {
@@ -241,19 +247,15 @@ const Main = () => {
       schema: 'public',
       table: 'messages',
       filter: `recipient_id=eq.${user.id}`
-    }, () => {
-      // Refetch count completely to ensure accuracy (fixes issue where 'old' payload is missing)
-      const fetchCount = async () => {
-          const { count } = await supabase
-            .from('messages')
-            .select('*', { count: 'exact', head: true })
-            .eq('recipient_id', user.id)
-            .eq('read', false);
-          setUnreadMessages(count || 0);
-      };
-      fetchCount();
+    }, (payload) => {
+      // OPTIMIZED: If we can detect a read status change locally, update state immediately
+      // Note: payload.old usually only has ID unless Replica Identity is set to Full.
+      // So we still fallback to fetchCounts for accuracy, but the window event listener above
+      // handles the immediate user interaction case.
+      fetchCounts();
     });
 
+    // ... (keep the notifications channel listeners below exactly as they were) ...
     channel.on('postgres_changes', {
       event: 'INSERT',
       schema: 'public',
@@ -278,6 +280,7 @@ const Main = () => {
 
     return () => {
       supabase.removeChannel(channel);
+      window.removeEventListener('messagesRead', handleMessagesRead); // Clean up new listener
     };
 
   }, [user]);
