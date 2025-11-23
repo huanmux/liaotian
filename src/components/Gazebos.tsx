@@ -14,6 +14,31 @@ import {
 const QUICK_EMOJIS = ['👍', '❤️', '😂', '😮', '😢', '💀'];
 
 // --- Types ---
+type GazeboReaction = {
+  id: string;
+  user_id: string;
+  emoji: string;
+  profiles: Profile;
+};
+
+// Helper to group reactions for the UI (Discord style)
+const groupReactions = (reactions: GazeboReaction[] | undefined, currentUserId: string) => {
+    if (!reactions) return [];
+    const grouped = new Map<string, { emoji: string; count: number; hasReacted: boolean; senders: string[] }>();
+    
+    for (const r of reactions) {
+        if (!grouped.has(r.emoji)) {
+            grouped.set(r.emoji, { emoji: r.emoji, count: 0, hasReacted: false, senders: [] });
+        }
+        const g = grouped.get(r.emoji)!;
+        g.count++;
+        g.senders.push(r.profiles.display_name);
+        if (r.user_id === currentUserId) g.hasReacted = true;
+    }
+    return Array.from(grouped.values()).sort((a, b) => b.count - a.count);
+};
+
+
 type GazebosProps = {
   initialInviteCode?: string | null;
   onInviteHandled?: () => void;
@@ -42,6 +67,8 @@ type AppGazeboMessage = GazeboMessage & {
         media_type?: string;
         sender?: { display_name: string }
     } | null;
+    // NEW: Add reactions array
+    reactions?: GazeboReaction[]; 
 };
 
 type VoicePeer = {
@@ -175,6 +202,10 @@ export const Gazebos = ({ initialInviteCode, onInviteHandled, initialGazeboId }:
   // Voice State
   const [voiceConnected, setVoiceConnected] = useState<{channelId: string, name: string} | null>(null);
   const [vcMinimized, setVcMinimized] = useState(false);
+
+  // Reaction UI State
+  const [reactionMenu, setReactionMenu] = useState<{ messageId: string, x: number, y: number } | null>(null);
+  const [viewingReactionsFor, setViewingReactionsFor] = useState<AppGazeboMessage | null>(null);
   
   // Refs
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -292,6 +323,34 @@ export const Gazebos = ({ initialInviteCode, onInviteHandled, initialGazeboId }:
         .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'gazebo_messages', filter: `channel_id=eq.${activeChannel.id}` }, payload => {
             setMessages(prev => prev.filter(m => m.id !== payload.old.id));
         })
+        // NEW: Listen for reactions
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'gazebo_message_reactions' }, async (payload) => {
+            if (payload.eventType === 'INSERT') {
+                const newRx = payload.new as any;
+                const { data: fullRx } = await supabase.from('gazebo_message_reactions').select('*, profiles(*)').eq('id', newRx.id).single();
+                if (fullRx) {
+                    setMessages(prev => prev.map(m => m.id === newRx.message_id ? { ...m, reactions: [...(m.reactions || []), fullRx] } : m));
+                    // Update modal if open
+                    setViewingReactionsFor(prev => prev?.id === newRx.message_id ? { ...prev, reactions: [...(prev.reactions || []), fullRx] } : prev);
+                }
+            } else if (payload.eventType === 'DELETE') {
+                const oldRx = payload.old as any;
+                // We have to find the message ID from the local state because DELETE payload usually doesn't have it
+                setMessages(prev => prev.map(m => {
+                    if (m.reactions?.some(r => r.id === oldRx.id)) {
+                        return { ...m, reactions: m.reactions.filter(r => r.id !== oldRx.id) };
+                    }
+                    return m;
+                }));
+                 // Update modal if open
+                 setViewingReactionsFor(prev => {
+                    if(prev?.reactions?.some(r => r.id === oldRx.id)) {
+                         return { ...prev, reactions: prev.reactions.filter(r => r.id !== oldRx.id) };
+                    }
+                    return prev;
+                });
+            }
+        })
         .subscribe();
 
       return () => { supabase.removeChannel(sub); };
@@ -306,10 +365,18 @@ export const Gazebos = ({ initialInviteCode, onInviteHandled, initialGazeboId }:
       
       const from = isInitial ? 0 : messages.length;
       const to = from + PAGE_SIZE - 1;
-
+    
+      // FIX: Select reactions and the profile of the reactor
       const { data, count } = await supabase
           .from('gazebo_messages')
-          .select('*, sender:profiles(*)', { count: 'exact' })
+          .select(`
+            *, 
+            sender:profiles(*),
+            reactions:gazebo_message_reactions(
+                id, emoji, user_id, 
+                profiles(id, display_name, username, avatar_url)
+            )
+          `, { count: 'exact' })
           .eq('channel_id', activeChannel.id)
           .order('created_at', { ascending: false })
           .range(from, to);
@@ -523,6 +590,32 @@ export const Gazebos = ({ initialInviteCode, onInviteHandled, initialGazeboId }:
       await supabase.from('gazebo_messages').update({ content: editMessageContent }).eq('id', editingMessageId);
       setEditingMessageId(null);
       setEditMessageContent('');
+  };
+
+  // NEW: Handle adding/removing reactions
+  const handleReaction = async (messageId: string, emoji: string) => {
+      if (!user) return;
+      
+      const message = messages.find(m => m.id === messageId);
+      const existing = message?.reactions?.find(r => r.user_id === user.id && r.emoji === emoji);
+
+      setReactionMenu(null); // Close menu immediately
+
+      if (existing) {
+          // Toggle OFF
+          await supabase.from('gazebo_message_reactions').delete().eq('id', existing.id);
+      } else {
+          // Toggle ON
+          await supabase.from('gazebo_message_reactions').insert({
+              message_id: messageId,
+              user_id: user.id,
+              emoji: emoji
+          });
+      }
+  };
+
+  const handleRemoveReaction = async (reactionId: string) => {
+      await supabase.from('gazebo_message_reactions').delete().eq('id', reactionId);
   };
 
   // --- Audio Recording ---
@@ -787,7 +880,19 @@ export const Gazebos = ({ initialInviteCode, onInviteHandled, initialGazeboId }:
                                               </div>
                                           )}
                                           
-                                          <div className="absolute -top-4 right-0 bg-[rgb(var(--color-surface))] border border-[rgb(var(--color-border))] rounded shadow-sm hidden group-hover:flex z-10">
+                                          <div className="absolute -top-4 right-0 bg-[rgb(var(--color-surface))] border border-[rgb(var(--color-border))] rounded shadow-sm hidden group-hover:flex z-10 items-center">
+                                               {/* NEW: Reaction Trigger Button */}
+                                               <button 
+                                                  onClick={(e) => {
+                                                      const rect = e.currentTarget.getBoundingClientRect();
+                                                      setReactionMenu({ messageId: msg.id, x: rect.left, y: rect.top });
+                                                  }}
+                                                  className="p-1.5 hover:bg-[rgb(var(--color-surface-hover))] text-[rgb(var(--color-text-secondary))] hover:text-yellow-500 transition" 
+                                                  title="Add Reaction"
+                                               >
+                                                  <Smile size={14} />
+                                               </button>
+                                               
                                                <button onClick={() => setReplyingTo(msg)} className="p-1.5 hover:bg-[rgb(var(--color-surface-hover))] text-[rgb(var(--color-text-secondary))]" title="Reply"><CornerUpLeft size={14} /></button>
                                                {isSelf && (
                                                  <>
@@ -802,13 +907,38 @@ export const Gazebos = ({ initialInviteCode, onInviteHandled, initialGazeboId }:
                                                   {msg.media_type === 'image' && <img src={msg.media_url} className="max-h-80 rounded-lg border border-[rgb(var(--color-border))]" />}
                                                   {msg.media_type === 'video' && <video src={msg.media_url} controls className="max-h-80 rounded-lg border border-[rgb(var(--color-border))]" />}
                                                   {msg.media_type === 'audio' && <div className="bg-[rgb(var(--color-surface))] p-2 rounded w-64 border border-[rgb(var(--color-border))]"><AudioPlayer src={msg.media_url} isOutgoing={false} /></div>}
-                                                  {/* Fallback for generic links or files that aren't the main types */}
                                                   {(msg.media_type === 'document' || (!['image','video','audio'].includes(msg.media_type || ''))) && (
                                                     <a href={msg.media_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 p-2 bg-[rgb(var(--color-surface-hover))] rounded w-fit border border-[rgb(var(--color-border))] hover:bg-[rgb(var(--color-border))] transition">
                                                         <LinkIcon size={16} />
                                                         <span className="truncate max-w-xs">{msg.media_url}</span>
                                                     </a>
                                                   )}
+                                              </div>
+                                          )}
+
+                                          {/* NEW: Reaction Pills Display */}
+                                          {msg.reactions && msg.reactions.length > 0 && (
+                                              <div className="flex flex-wrap gap-1 mt-2">
+                                                  {groupReactions(msg.reactions, user?.id || '').map((g) => (
+                                                      <div 
+                                                          key={g.emoji}
+                                                          // Clicking toggles the reaction for current user
+                                                          onClick={() => handleReaction(msg.id, g.emoji)}
+                                                          // Right click (or shift click) to see who reacted
+                                                          onContextMenu={(e) => { e.preventDefault(); setViewingReactionsFor(msg); }}
+                                                          className={`
+                                                              flex items-center gap-1.5 px-2 py-0.5 rounded-lg border text-xs font-bold cursor-pointer transition select-none
+                                                              ${g.hasReacted 
+                                                                  ? 'bg-[rgba(var(--color-primary),0.15)] border-[rgba(var(--color-primary),0.5)] text-[rgb(var(--color-primary))]' 
+                                                                  : 'bg-[rgb(var(--color-surface))] border-transparent hover:border-[rgb(var(--color-text-secondary))] text-[rgb(var(--color-text-secondary))]'
+                                                              }
+                                                          `}
+                                                          title={`${g.senders.join(', ')} reacted`}
+                                                      >
+                                                          <span>{g.emoji}</span>
+                                                          <span>{g.count}</span>
+                                                      </div>
+                                                  ))}
                                               </div>
                                           )}
                                       </div>
@@ -1209,6 +1339,77 @@ export const Gazebos = ({ initialInviteCode, onInviteHandled, initialGazeboId }:
                   </div>
               </div>
           </div>
+      )}
+
+      {/* NEW: Reaction Menu (Picker) */}
+      {reactionMenu && (
+        <div 
+            className="fixed inset-0 z-[100]" 
+            onClick={() => setReactionMenu(null)}
+            onContextMenu={(e) => { e.preventDefault(); setReactionMenu(null); }}
+        >
+            <div 
+                className="absolute p-2 bg-[rgb(var(--color-surface))] rounded-xl shadow-2xl flex gap-1 z-50 pointer-events-auto border border-[rgb(var(--color-border))] animate-in zoom-in-95 duration-100"
+                style={{ 
+                    top: reactionMenu.y - 50, // Display above the message
+                    left: reactionMenu.x 
+                }}
+                onClick={e => e.stopPropagation()} 
+            >
+                {QUICK_EMOJIS.map(emoji => (
+                    <button
+                        key={emoji}
+                        onClick={() => handleReaction(reactionMenu.messageId, emoji)}
+                        className="text-2xl p-2 rounded-lg hover:bg-[rgb(var(--color-surface-hover))] transition hover:scale-110 active:scale-95"
+                    >
+                        {emoji}
+                    </button>
+                ))}
+            </div>
+        </div>
+      )}
+
+      {/* NEW: Reaction Details Modal */}
+      {viewingReactionsFor && (
+        <div 
+            className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+            onClick={() => setViewingReactionsFor(null)}
+        >
+            <div 
+                className="bg-[rgb(var(--color-surface))] w-full max-w-sm rounded-xl shadow-2xl overflow-hidden border border-[rgb(var(--color-border))]"
+                onClick={e => e.stopPropagation()}
+            >
+                <div className="p-4 border-b border-[rgb(var(--color-border))] flex justify-between items-center bg-[rgb(var(--color-surface-hover))]">
+                    <h3 className="font-bold text-[rgb(var(--color-text))]">Reactions</h3>
+                    <button onClick={() => setViewingReactionsFor(null)} className="p-1 hover:bg-[rgb(var(--color-background))] rounded-full"><X size={18} /></button>
+                </div>
+                <div className="max-h-[60vh] overflow-y-auto p-2">
+                    {/* Flatten reactions and group by user? Or just show list. Simple list is easier. */}
+                    {viewingReactionsFor.reactions?.map(r => (
+                        <div key={r.id} className="flex items-center justify-between p-2 hover:bg-[rgb(var(--color-surface-hover))] rounded-lg group">
+                            <div className="flex items-center gap-3">
+                                <div className="relative">
+                                    <img src={r.profiles.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${r.profiles.username}`} className="w-8 h-8 rounded-full" />
+                                    <div className="absolute -bottom-1 -right-1 text-sm">{r.emoji}</div>
+                                </div>
+                                <div>
+                                    <div className="font-bold text-sm">{r.profiles.display_name}</div>
+                                    <div className="text-xs text-[rgb(var(--color-text-secondary))]">@{r.profiles.username}</div>
+                                </div>
+                            </div>
+                            {r.user_id === user?.id && (
+                                <button onClick={() => handleRemoveReaction(r.id)} className="text-[rgb(var(--color-text-secondary))] hover:text-red-500 p-2 opacity-0 group-hover:opacity-100 transition">
+                                    <Trash2 size={14} />
+                                </button>
+                            )}
+                        </div>
+                    ))}
+                    {(!viewingReactionsFor.reactions || viewingReactionsFor.reactions.length === 0) && (
+                        <div className="text-center p-4 text-[rgb(var(--color-text-secondary))]">No reactions yet</div>
+                    )}
+                </div>
+            </div>
+        </div>
       )}
 
       {/* === VOICE CHANNEL OVERLAY === */}
