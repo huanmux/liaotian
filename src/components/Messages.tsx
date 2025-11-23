@@ -265,13 +265,19 @@ export const Messages = ({
 
   const markMessagesAsRead = async (senderId: string) => {
     if (!user) return;
-    supabase
+    
+    // Update DB
+    const { error } = await supabase
       .from('messages')
       .update({ read: true })
       .eq('recipient_id', user.id)
       .eq('sender_id', senderId)
-      .eq('read', false)
-      .then();
+      .eq('read', false);
+
+    // If successful, tell the rest of the app to update the badge
+    if (!error) {
+        window.dispatchEvent(new CustomEvent('messagesRead'));
+    }
   };
 
   const isUserOnline = (lastSeen: string | null | undefined): boolean => {
