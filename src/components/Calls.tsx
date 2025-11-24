@@ -47,6 +47,31 @@ export const Calls = () => {
   // without forcing the Peer useEffect to re-run and destroy the connection.
   const callInProgressRef = useRef(callInProgress);
   const incomingCallRef = useRef(incomingCall);
+  const ringtoneRef = useRef<HTMLAudioElement | null>(null);
+
+  // Initialize Audio object once on mount
+  useEffect(() => {
+    ringtoneRef.current = new Audio('https://mux8.com/assets/audio/theme01full.mp3'); // Make sure ringtone.mp3 is in /public
+    ringtoneRef.current.loop = true;
+    return () => {
+      ringtoneRef.current?.pause();
+      ringtoneRef.current = null;
+    };
+  }, []);
+
+  // Play/Pause based on incomingCall state
+  useEffect(() => {
+    if (incomingCall) {
+      ringtoneRef.current?.play().catch((err) => {
+        console.warn('Ringtone autoplay blocked by browser:', err);
+      });
+    } else {
+      if (ringtoneRef.current) {
+        ringtoneRef.current.pause();
+        ringtoneRef.current.currentTime = 0;
+      }
+    }
+  }, [incomingCall]);
 
   useEffect(() => {
     callInProgressRef.current = callInProgress;
