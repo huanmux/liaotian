@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { supabase, Post as PostType } from '../lib/supabase';
 import { MessageEmbed } from './MessageEmbed';
+import { SPECIAL_EVENT_MODE } from '../App';
 import { 
   Heart, 
   MessageCircle, 
@@ -325,6 +326,9 @@ export const PostItem: React.FC<PostItemProps> = ({
   return (
     <>
       <div className="border-b border-[rgb(var(--color-border))] p-4 hover:bg-[rgb(var(--color-surface-hover))] transition bg-[rgb(var(--color-surface))]">
+        {/* SPECIAL EVENT RGB OVERLAY */}
+        {SPECIAL_EVENT_MODE && <div className="special-event-overlay" />}
+        
         <div className="flex gap-4 items-start">
           <button onClick={() => onNavigateToProfile(post.user_id)} className="flex-shrink-0 relative">
             <img src={post.profiles?.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${post.profiles?.username}`} className="w-12 h-12 rounded-full hover:opacity-80 transition" alt="Avatar" />

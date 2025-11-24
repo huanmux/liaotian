@@ -1493,8 +1493,8 @@ export const Messages = ({
               {messages.map((msg) => {
                 const isOnlyAudio = msg.media_type === 'audio' && !msg.content.trim();
                 const messageWidthClass = isOnlyAudio 
-                    ? 'max-w-[70%] sm:max-w-[50%] md:max-w-[65%] text-sm'
-                    : 'max-w-[70%] sm:max-w-[45%] md:max-w-[50%] text-sm';
+                    ? 'max-w-[70%] sm:max-w-[50%] md:max-w-[65%] text-xs'
+                    : 'max-w-[70%] sm:max-w-[45%] md:max-w-[50%] text-xs';
 
                 return (
                 <div
