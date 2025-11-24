@@ -2,14 +2,14 @@
 import React from 'react';
 import { Home, Archive } from 'lucide-react';
 
-interface StatusSidebarProps {
+interface SidebarProps {
   show: boolean;
   onClose: () => void;
   setView: (view: any) => void;
   view: string;
 }
 
-export const StatusSidebar: React.FC<StatusSidebarProps> = ({ show, onClose, setView, view }) => {
+export const Sidebar: React.FC<SidebarProps> = ({ show, onClose, setView, view }) => {
   const menuItems = [
     { icon: <Home size={20} />, label: 'Home', view: 'feed', onClick: () => { setView('feed'); onClose(); } },
     { icon: <Archive size={20} />, label: 'Status Archive', view: 'archive', onClick: () => { setView('archive'); onClose(); } },
