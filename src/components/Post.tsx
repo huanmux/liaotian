@@ -370,25 +370,42 @@ export const PostItem: React.FC<PostItemProps> = ({
               </div>
             ) : (
               <>
-                 <p className="mt-1 whitespace-pre-wrap break-words text-[rgb(var(--color-text))]">{displayContent}</p>
-                 
-                 {/* UNIFIED EMBED LOGIC */}
+                 {/* UNIFIED EMBED LOGIC & URL CLEANING */}
                  {(() => {
-                    // 1. If user uploaded a file directly, that takes priority. Don't show URL previews.
-                    if (post.media_url) return null;
+                    let textToDisplay = displayContent;
+                    let embedComponent = null;
 
-                    // 2. Extract the first URL found in the text
-                    const url = extractFirstUrl(displayContent);
-                    if (!url) return null;
+                    // 1. If user uploaded a file directly, that takes priority.
+                    if (!post.media_url) {
+                       // 2. Extract the first URL found in the text
+                       const url = extractFirstUrl(displayContent);
+                       
+                       if (url) {
+                          // Clean the URL from the displayed text
+                          textToDisplay = displayContent.replace(url, '').trim();
 
-                    // 3. Check if it's YouTube -> Render Iframe
-                    const youtubeEmbed = getYoutubeEmbed(url);
-                    if (youtubeEmbed) {
-                      return youtubeEmbed;
+                          // 3. Check if it's YouTube -> Render Iframe
+                          const youtubeEmbed = getYoutubeEmbed(url);
+                          if (youtubeEmbed) {
+                             embedComponent = youtubeEmbed;
+                          } else {
+                             // 4. If not YouTube -> Render MessageEmbed
+                             embedComponent = <MessageEmbed url={url} />;
+                          }
+                       }
                     }
 
-                    // 4. If not YouTube -> Render MessageEmbed
-                    return <MessageEmbed url={url} />;
+                    return (
+                       <>
+                          {/* Only render text paragraph if there is text remaining after stripping URL */}
+                          {textToDisplay && (
+                             <p className="mt-1 whitespace-pre-wrap break-words text-[rgb(var(--color-text))]">
+                                {textToDisplay}
+                             </p>
+                          )}
+                          {embedComponent}
+                       </>
+                    );
                  })()}
               </>
             )}
