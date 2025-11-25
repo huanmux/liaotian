@@ -592,34 +592,59 @@ export const Messages = ({
       .channel(`messages:${selectedUser.id}`)
       .on(
         'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'messages' },
+        { event: '*', schema: 'public', table: 'messages' }, // Change event to '*' to catch UPDATES
         async (payload) => {
-          const msg = payload.new as AppMessage;
-          if (
-            (msg.sender_id === user!.id && msg.recipient_id === selectedUser.id) ||
-            (msg.sender_id === selectedUser.id && msg.recipient_id === user!.id)
-          ) {
-            let finalMsg = msg;
-            if (finalMsg.reply_to_id) {
-              const { data: repliedToMsgData } = await supabase
-                .from('messages')
-                .select('id, content, sender_id, media_type')
-                .eq('id', finalMsg.reply_to_id)
-                .single();
-              
-              if (repliedToMsgData) {
-                finalMsg = { ...finalMsg, reply_to: repliedToMsgData } as AppMessage; 
+          const eventType = payload.eventType;
+          const newRecord = payload.new as AppMessage;
+
+          // 1. Handle New Messages (INSERT)
+          if (eventType === 'INSERT') {
+            if (
+              (newRecord.sender_id === user!.id && newRecord.recipient_id === selectedUser.id) ||
+              (newRecord.sender_id === selectedUser.id && newRecord.recipient_id === user!.id)
+            ) {
+              let finalMsg = newRecord;
+              if (finalMsg.reply_to_id) {
+                const { data: repliedToMsgData } = await supabase
+                  .from('messages')
+                  .select('id, content, sender_id, media_type')
+                  .eq('id', finalMsg.reply_to_id)
+                  .single();
+                
+                if (repliedToMsgData) {
+                  finalMsg = { ...finalMsg, reply_to: repliedToMsgData } as AppMessage; 
+                }
               }
-            }
 
-            if (msg.sender_id === selectedUser.id && msg.recipient_id === user!.id) {
-              markMessagesAsRead(selectedUser.id);
-              finalMsg.read = true;
-            }
+              if (newRecord.sender_id === selectedUser.id && newRecord.recipient_id === user!.id) {
+                markMessagesAsRead(selectedUser.id);
+                finalMsg.read = true;
+              }
 
-            setMessages((prev) => [...prev, finalMsg]);
-            scrollToBottom();
-            loadConversations();
+              setMessages((prev) => [...prev, finalMsg]);
+              scrollToBottom();
+              loadConversations();
+            }
+          }
+
+          // 2. Handle Edits and Deletes (UPDATE)
+          if (eventType === 'UPDATE') {
+             setMessages((prev) => prev.map((msg) => {
+                if (msg.id === newRecord.id) {
+                   // Merge the new DB data (content, is_edited, is_deleted)
+                   // into the existing object to preserve joined data (reactions, replies)
+                   return {
+                      ...msg,
+                      content: newRecord.content,
+                      media_url: newRecord.media_url,
+                      media_type: newRecord.media_type,
+                      is_edited: newRecord.is_edited,
+                      is_deleted: newRecord.is_deleted,
+                      read: newRecord.read
+                   };
+                }
+                return msg;
+             }));
           }
         }
       )
@@ -1740,18 +1765,6 @@ export const Messages = ({
                         </button>
                     </div>
                   )}
-
-                   {/* Outgoing Actions (IsMe) */}
-                   {isMe && !msg.is_deleted && (
-                        <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition duration-200 mr-2 self-center">
-                            <button onClick={(e) => { const rect = e.currentTarget.getBoundingClientRect(); setReactionMenu({ messageId: msg.id, x: rect.left, y: rect.top, isOutgoing: true }); }} className="p-1.5 rounded-full text-[rgb(var(--color-text-secondary))] hover:bg-[rgb(var(--color-surface-hover))]">
-                                <MoreVertical size={14} />
-                            </button>
-                            <button onClick={() => setReplyingTo(msg)} className="p-1.5 rounded-full text-[rgb(var(--color-text-secondary))] hover:bg-[rgb(var(--color-surface-hover))]">
-                                <CornerUpLeft size={14} />
-                            </button>
-                        </div>
-                    )}
                 </div>
               )})}
 
