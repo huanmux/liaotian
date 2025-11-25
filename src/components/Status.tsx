@@ -1230,15 +1230,16 @@ const StatusViewer: React.FC<{
         <video
           ref={videoRef}
           className={`w-full h-full object-contain mx-auto block transition-opacity ${currentStory.media_type === 'video' ? 'opacity-100' : 'opacity-0'}`}
+          style={{ display: currentStory.media_type === 'video' ? 'block' : 'none' }} 
           playsInline
-          onEnded={goToNextStory} // Keep as fallback
-          onLoadedMetadata={(e) => { // <-- NEW: Get video duration
-            setIsLoading(false); // Video metadata is loaded
+          onEnded={goToNextStory} 
+          onLoadedMetadata={(e) => { 
+            setIsLoading(false); 
             setVideoDuration(e.currentTarget.duration * 1000);
           }}
-          onCanPlay={() => { // Keep as fallback
+          onCanPlay={() => { 
              setIsLoading(false);
-             if (videoRef.current && videoDuration === 0) { // Fix for stubborn browsers
+             if (videoRef.current && videoDuration === 0) { 
                 setVideoDuration(videoRef.current.duration * 1000);
              }
           }}
