@@ -2,12 +2,14 @@
 import { useEffect, useState, useRef, useCallback, lazy, Suspense } from 'react';
 import { supabase, Message, Profile, uploadMedia, MessageReaction } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
-import { Send, BadgeCheck, Search, ArrowLeft, X, Paperclip, FileText, Link, CornerUpLeft, Phone, Video, Mic, Play, Pause, Check, CheckCheck, MessageSquare, Users, Smile, Image as ImageIcon, Film, Music, Folder, FileIcon } from 'lucide-react';
+import { Send, BadgeCheck, Search, ArrowLeft, X, Paperclip, FileText, Link, CornerUpLeft, Phone, Video, Mic, Play, Pause, Plus, Check, CheckCheck, MessageSquare, Users, Smile, Image as ImageIcon, Film, Music, Folder, FileIcon, MoreVertical, ChevronDown, Edit2, Trash2, Copy, Gift } from 'lucide-react';
 import { MessageEmbed } from './MessageEmbed';
+import { EmojiPicker } from './EmojiPicker';
 
-// Lazy load components to prevent Circular Dependency ReferenceErrors ("Cannot access 'le' before initialization")
+// Lazy load components to prevent Circular Dependency ReferenceErrors
 const Calls = lazy(() => import('./Calls').then(module => ({ default: module.Calls })));
 const Gazebos = lazy(() => import('./Gazebos').then(module => ({ default: module.Gazebos })));
+
 const extractFirstUrl = (text: string): string | null => {
   const urlRegex = /(https?:\/\/[^\s]+)/g;
   const match = text.match(urlRegex);
@@ -150,7 +152,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ src, isOutgoing }) => {
       
       <button 
         onClick={handlePlayPause}
-        className={`flex-shrink-0 p-2 rounded-full transition-colors`}
+        className={`flex-shrink-0 p-1.5 rounded-full transition-colors`}
         style={{
             backgroundColor: isOutgoing 
                 ? 'rgba(var(--color-text-on-primary), 0.15)' 
@@ -158,7 +160,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ src, isOutgoing }) => {
             color: primaryColor,
         }}
       >
-        {isPlaying ? <Pause size={16} fill={primaryColor} /> : <Play size={16} fill={primaryColor} />}
+        {isPlaying ? <Pause size={14} fill={primaryColor} /> : <Play size={14} fill={primaryColor} />}
       </button>
 
       <div className="flex-1 min-w-0 flex items-center gap-2">
@@ -174,7 +176,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ src, isOutgoing }) => {
             background: `linear-gradient(to right, ${primaryColor} 0%, ${primaryColor} ${((currentTime / duration) * 100) || 0}%, ${trackColor} ${((currentTime / duration) * 100) || 0}%, ${trackColor} 100%)`,
           }}
         />
-        <span className="text-xs flex-shrink-0" style={{ color: primaryColor }}>
+        <span className="text-[10px] flex-shrink-0 opacity-80" style={{ color: primaryColor }}>
           {formatTime(currentTime)}/{formatTime(duration)}
         </span>
       </div>
@@ -212,6 +214,147 @@ export const Messages = ({
   const [reactionMenu, setReactionMenu] = useState<{ messageId: string, x: number, y: number, isOutgoing: boolean } | null>(null);
   // NEW: State to control the "Who Reacted" modal
   const [viewingReactionsFor, setViewingReactionsFor] = useState<AppMessage | null>(null);
+  const [showFullEmojiPicker, setShowFullEmojiPicker] = useState(false);
+  const longPressTimer = useRef<NodeJS.Timeout | null>(null);
+  const isLongPress = useRef(false);
+
+  // --- EDIT & DELETE STATE ---
+  const [editingMessage, setEditingMessage] = useState<AppMessage | null>(null);
+
+  // --- GIF PICKER STATE ---
+  const [showGifPicker, setShowGifPicker] = useState(false);
+  const [gifQuery, setGifQuery] = useState('');
+  const [gifs, setGifs] = useState<any[]>([]);
+
+  // --- ACTIONS ---
+  const handleCopyMessage = (content: string) => {
+    navigator.clipboard.writeText(content);
+    setReactionMenu(null);
+  };
+
+  const handleDeleteMessage = async (messageId: string) => {
+    setReactionMenu(null);
+    
+    // 1. Optimistic Update (Immediate UI feedback)
+    setMessages(prev => prev.map(m => m.id === messageId ? { 
+        ...m, 
+        is_deleted: true
+    } : m));
+
+    // 2. Database Update
+    const { error } = await supabase
+      .from('messages')
+      .update({ 
+        is_deleted: true
+      })
+      .eq('id', messageId)
+      // We rely on RLS policy (auth.uid() = sender_id) for security now
+      .select(); 
+
+    if (error) {
+        console.error("Error deleting message:", error);
+        // Optional: Revert UI if failed
+        loadMessages(selectedUser!.id);
+    }
+  };
+
+  const handleEditMessage = (message: AppMessage) => {
+    setEditingMessage(message);
+    setContent(message.content);
+    setReactionMenu(null);
+    fileInputRef.current?.focus();
+  };
+
+  const handleUpdateMessage = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingMessage || !content.trim()) return;
+
+    const previousMessages = [...messages];
+    
+    // 1. Optimistic Update
+    setMessages(prev => prev.map(m => m.id === editingMessage.id ? { 
+        ...m, 
+        content: content, 
+        is_edited: true 
+    } : m));
+    
+    setEditingMessage(null);
+    setContent('');
+
+    // 2. Database Update
+    const { error } = await supabase
+      .from('messages')
+      .update({ 
+        content: content, 
+        is_edited: true 
+      })
+      .eq('id', editingMessage.id)
+      .select();
+
+    if (error) {
+      console.error("Error updating message:", error);
+      setMessages(previousMessages); // Revert on error
+      alert("Failed to update message");
+    }
+  };
+
+  // --- TENOR API ---
+  const searchGifs = async (query: string = '') => {
+      const apiKey = import.meta.env.VITE_TENOR_API_KEY;
+      if (!apiKey) return;
+      const searchUrl = query 
+        ? `https://tenor.googleapis.com/v2/search?q=${query}&key=${apiKey}&client_key=gazebo_app&limit=12&media_filter=minimal`
+        : `https://tenor.googleapis.com/v2/featured?key=${apiKey}&client_key=gazebo_app&limit=12&media_filter=minimal`;
+      
+      try {
+          const res = await fetch(searchUrl);
+          const data = await res.json();
+          setGifs(data.results || []);
+      } catch (e) {
+          console.error("Tenor Error", e);
+      }
+  };
+
+  useEffect(() => {
+      if (showGifPicker) searchGifs(gifQuery);
+  }, [showGifPicker, gifQuery]);
+
+  // Handle click outside to close GIF picker
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (gifPickerRef.current && !gifPickerRef.current.contains(event.target as Node)) {
+        setShowGifPicker(false);
+      }
+    };
+
+    if (showGifPicker) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showGifPicker]);
+
+  const sendGif = async (url: string) => {
+      setShowGifPicker(false);
+      setMediaInputMode(null);
+      
+      const { data } = await supabase
+      .from('messages')
+      .insert({
+        sender_id: user!.id,
+        recipient_id: selectedUser!.id,
+        content: '',
+        media_url: url,
+        media_type: 'image', // Treat GIFs as images
+      })
+      .select().single();
+      
+      if(data) {
+          setMessages(prev => [...prev, data as AppMessage]);
+          scrollToBottom();
+      }
+  };
 
   // --- MEDIA GALLERY STATE ---
   const [showMediaGallery, setShowMediaGallery] = useState(false);
@@ -296,6 +439,7 @@ export const Messages = ({
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const gifPickerRef = useRef<HTMLDivElement>(null);
 
   const typingChannelRef = useRef<any>(null);
   const outgoingTypingChannelRef = useRef<any>(null);
@@ -340,18 +484,17 @@ export const Messages = ({
 
     let parts = [];
     if (days > 0) {
-        parts.push(`${days} day${days > 1 ? 's' : ''}`);
-        if (hours > 0) parts.push(`${hours} hour${hours > 1 ? 's' : ''}`);
-        else if (minutes > 0) parts.push(`${minutes} minute${minutes > 1 ? 's' : ''}`);
+        parts.push(`${days}d`);
+        if (hours > 0) parts.push(`${hours}h`);
     } else if (hours > 0) {
-        parts.push(`${hours} hour${hours > 1 ? 's' : ''}`);
-        if (minutes > 0) parts.push(`${minutes} minute${minutes > 1 ? 's' : ''}`);
+        parts.push(`${hours}h`);
+        if (minutes > 0) parts.push(`${minutes}m`);
     } else if (minutes > 0) {
-        parts.push(`${minutes} minute${minutes > 1 ? 's' : ''}`);
+        parts.push(`${minutes}m`);
     }
 
     if (parts.length === 0) return null; 
-    return `Last seen ${parts.join(' ')} ago`;
+    return `${parts.join(' ')} ago`;
   };
 
   const scrollToBottom = () => {
@@ -497,34 +640,59 @@ export const Messages = ({
       .channel(`messages:${selectedUser.id}`)
       .on(
         'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'messages' },
+        { event: '*', schema: 'public', table: 'messages' }, // Change event to '*' to catch UPDATES
         async (payload) => {
-          const msg = payload.new as AppMessage;
-          if (
-            (msg.sender_id === user!.id && msg.recipient_id === selectedUser.id) ||
-            (msg.sender_id === selectedUser.id && msg.recipient_id === user!.id)
-          ) {
-            let finalMsg = msg;
-            if (finalMsg.reply_to_id) {
-              const { data: repliedToMsgData } = await supabase
-                .from('messages')
-                .select('id, content, sender_id, media_type')
-                .eq('id', finalMsg.reply_to_id)
-                .single();
-              
-              if (repliedToMsgData) {
-                finalMsg = { ...finalMsg, reply_to: repliedToMsgData } as AppMessage; 
+          const eventType = payload.eventType;
+          const newRecord = payload.new as AppMessage;
+
+          // 1. Handle New Messages (INSERT)
+          if (eventType === 'INSERT') {
+            if (
+              (newRecord.sender_id === user!.id && newRecord.recipient_id === selectedUser.id) ||
+              (newRecord.sender_id === selectedUser.id && newRecord.recipient_id === user!.id)
+            ) {
+              let finalMsg = newRecord;
+              if (finalMsg.reply_to_id) {
+                const { data: repliedToMsgData } = await supabase
+                  .from('messages')
+                  .select('id, content, sender_id, media_type')
+                  .eq('id', finalMsg.reply_to_id)
+                  .single();
+                
+                if (repliedToMsgData) {
+                  finalMsg = { ...finalMsg, reply_to: repliedToMsgData } as AppMessage; 
+                }
               }
-            }
 
-            if (msg.sender_id === selectedUser.id && msg.recipient_id === user!.id) {
-              markMessagesAsRead(selectedUser.id);
-              finalMsg.read = true;
-            }
+              if (newRecord.sender_id === selectedUser.id && newRecord.recipient_id === user!.id) {
+                markMessagesAsRead(selectedUser.id);
+                finalMsg.read = true;
+              }
 
-            setMessages((prev) => [...prev, finalMsg]);
-            scrollToBottom();
-            loadConversations();
+              setMessages((prev) => [...prev, finalMsg]);
+              scrollToBottom();
+              loadConversations();
+            }
+          }
+
+          // 2. Handle Edits and Deletes (UPDATE)
+          if (eventType === 'UPDATE') {
+             setMessages((prev) => prev.map((msg) => {
+                if (msg.id === newRecord.id) {
+                   // Merge the new DB data (content, is_edited, is_deleted)
+                   // into the existing object to preserve joined data (reactions, replies)
+                   return {
+                      ...msg,
+                      content: newRecord.content,
+                      media_url: newRecord.media_url,
+                      media_type: newRecord.media_type,
+                      is_edited: newRecord.is_edited,
+                      is_deleted: newRecord.is_deleted,
+                      read: newRecord.read
+                   };
+                }
+                return msg;
+             }));
           }
         }
       )
@@ -699,15 +867,6 @@ export const Messages = ({
       e.preventDefault(); // Prevent default paste behavior (optional, depending on preference)
       return;
     }
-
-    // 2. Handle Text (Optional: If you want to detect remote image URLs in clipboard text)
-    /*
-    const pastedText = e.clipboardData.getData('text');
-    if (pastedText.match(/\.(jpeg|jpg|gif|png|webp)$/i) && isValidUrl(pastedText)) {
-         setRemoteUrl(pastedText);
-         // setMediaInputMode('url'); // Optional: switch UI to URL mode
-    }
-    */
   };
 
   const sendMessage = async (e: React.FormEvent) => {
@@ -982,34 +1141,34 @@ export const Messages = ({
     if (file) {
       const url = URL.createObjectURL(file);
       if (file.type.startsWith('image/')) {
-        return <img src={url} className="max-h-32 rounded-lg" alt="Preview" />;
+        return <img src={url} className="max-h-24 rounded-lg shadow-sm" alt="Preview" />;
       }
       if (file.type.startsWith('video/')) {
-        return <video src={url} className="max-h-32 rounded-lg" controls />;
+        return <video src={url} className="max-h-24 rounded-lg shadow-sm" controls />;
       }
       if (file.type.startsWith('audio/')) {
         return <AudioPlayer src={url} isOutgoing={true} />; 
       }
       return (
-        <div className="flex items-center gap-2 text-sm text-[rgb(var(--color-text))]">
-          <FileText size={16} />
+        <div className="flex items-center gap-2 text-xs text-[rgb(var(--color-text))] p-2 bg-[rgb(var(--color-background))] rounded-lg border border-[rgb(var(--color-border))]">
+          <FileText size={16} className="text-[rgb(var(--color-accent))]" />
           <span>{file.name}</span>
         </div>
       );
     }
     if (remoteUrl) {
       if (remoteUrl.match(/\.(jpeg|jpg|gif|png|webp)$/i)) {
-        return <img src={remoteUrl} className="max-h-32 rounded-lg" alt="Remote preview" />;
+        return <img src={remoteUrl} className="max-h-24 rounded-lg shadow-sm" alt="Remote preview" />;
       }
       if (remoteUrl.match(/\.(mp4|webm|mov|avi)$/i)) {
-        return <video src={remoteUrl} className="max-h-32 rounded-lg" controls />;
+        return <video src={remoteUrl} className="max-h-24 rounded-lg shadow-sm" controls />;
       }
       if (remoteUrl.match(/\.(mp3|wav|ogg|m4a)$/i)) {
         return <AudioPlayer src={remoteUrl} isOutgoing={true} />;
       }
       return (
-        <div className="flex items-center gap-2 text-sm text-[rgb(var(--color-text))]">
-          <Link size={16} />
+        <div className="flex items-center gap-2 text-xs text-[rgb(var(--color-text))] p-2 bg-[rgb(var(--color-background))] rounded-lg border border-[rgb(var(--color-border))]">
+          <Link size={16} className="text-[rgb(var(--color-accent))]" />
           <span className="truncate max-w-[150px]">{remoteUrl}</span>
         </div>
       );
@@ -1025,7 +1184,7 @@ export const Messages = ({
           <Calls />
         </Suspense>
         
-        {/* Mobile Tab Switcher - Fixed Position for Visibility */}
+        {/* Mobile Tab Switcher */}
         <div className="md:hidden flex-shrink-0 p-2 bg-[rgb(var(--color-surface))] border-b border-[rgb(var(--color-border))] flex gap-2 z-50">
           <button 
             onClick={() => setActiveTab('chats')} 
@@ -1078,7 +1237,7 @@ export const Messages = ({
         <Calls />
       </Suspense>
       
-      {/* Reaction Menu Overlay (For adding new reactions) */}
+      {/* Enhanced Context Menu Overlay */}
       {reactionMenu && (
         <div 
             className="fixed inset-0 z-50" 
@@ -1086,89 +1245,112 @@ export const Messages = ({
             onContextMenu={(e) => { e.preventDefault(); setReactionMenu(null); }}
         >
             <div 
-                className="absolute p-1 bg-[rgb(var(--color-surface))] rounded-xl shadow-2xl flex gap-1 z-50 pointer-events-auto border border-[rgb(var(--color-border))]"
+                className="absolute bg-[rgb(var(--color-surface))] rounded-2xl shadow-xl flex flex-col z-50 pointer-events-auto border border-[rgb(var(--color-border))] animate-in fade-in zoom-in-95 duration-200 origin-bottom overflow-hidden min-w-[180px]"
                 style={{ 
-                    top: reactionMenu.y, 
-                    left: reactionMenu.isOutgoing 
-                        ? reactionMenu.x - (reactionMenu.x > window.innerWidth / 2 ? 160 : 0) 
-                        : reactionMenu.x
+                    top: reactionMenu.y - 120, 
+                    left: Math.min(window.innerWidth - 200, Math.max(10, reactionMenu.x - 90)) 
                 }}
                 onClick={e => e.stopPropagation()} 
             >
-                {QUICK_EMOJIS.map(emoji => (
-                    <button
-                        key={emoji}
-                        onClick={() => handleReaction(reactionMenu.messageId, emoji)}
-                        className="text-2xl p-2 rounded-lg hover:bg-[rgb(var(--color-surface-hover))] transition"
-                    >
-                        {emoji}
+                {/* 1. Emoji Row */}
+                <div className="flex items-center gap-1 p-2 border-b border-[rgb(var(--color-border))] bg-[rgb(var(--color-surface-hover))] justify-center">
+                     {QUICK_EMOJIS.slice(0, 4).map(emoji => (
+                        <button key={emoji} onClick={() => handleReaction(reactionMenu.messageId, emoji)} className="text-xl p-1.5 hover:scale-125 transition">
+                            {emoji}
+                        </button>
+                    ))}
+                    <button onClick={() => setShowFullEmojiPicker(true)} className="p-1 text-[rgb(var(--color-text-secondary))] hover:text-[rgb(var(--color-accent))]">
+                        <Plus size={18} />
                     </button>
-                ))}
+                </div>
+
+                {/* 2. Action List */}
+                <div className="flex flex-col p-1">
+                    <button onClick={() => handleCopyMessage(messages.find(m => m.id === reactionMenu.messageId)?.content || "")} className="flex items-center gap-3 px-3 py-2 text-sm text-[rgb(var(--color-text))] hover:bg-[rgb(var(--color-surface-hover))] rounded-lg text-left">
+                        <Copy size={16} /> Copy Text
+                    </button>
+                    
+                    {reactionMenu.isOutgoing && (
+                        <>
+                            <button onClick={() => handleEditMessage(messages.find(m => m.id === reactionMenu.messageId) as AppMessage)} className="flex items-center gap-3 px-3 py-2 text-sm text-[rgb(var(--color-text))] hover:bg-[rgb(var(--color-surface-hover))] rounded-lg text-left">
+                                <Edit2 size={16} /> Edit Message
+                            </button>
+                            <button onClick={() => handleDeleteMessage(reactionMenu.messageId)} className="flex items-center gap-3 px-3 py-2 text-sm text-red-500 hover:bg-red-500/10 rounded-lg text-left">
+                                <Trash2 size={16} /> Delete Message
+                            </button>
+                        </>
+                    )}
+                </div>
             </div>
         </div>
       )}
 
-      {/* NEW: Reaction Details Modal (Who reacted list) */}
+      {/* Full Emoji Picker Modal */}
+      {showFullEmojiPicker && reactionMenu && (
+          <EmojiPicker 
+              onSelect={(emoji) => {
+                  handleReaction(reactionMenu.messageId, emoji);
+                  setShowFullEmojiPicker(false);
+              }}
+              onClose={() => setShowFullEmojiPicker(false)}
+          />
+      )}
+
+      {/* Reaction Details Modal */}
       {viewingReactionsFor && (
         <div 
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60 backdrop-blur-sm p-4"
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
             onClick={() => setViewingReactionsFor(null)}
         >
             <div 
-                className="bg-[rgb(var(--color-surface))] w-full max-w-sm rounded-2xl shadow-2xl overflow-hidden border border-[rgb(var(--color-border))]"
+                className="bg-[rgb(var(--color-surface))] w-full max-w-sm rounded-3xl shadow-2xl overflow-hidden border border-[rgb(var(--color-border))] transform transition-all"
                 onClick={e => e.stopPropagation()}
             >
-                <div className="p-4 border-b border-[rgb(var(--color-border))] flex justify-between items-center">
+                <div className="p-4 border-b border-[rgb(var(--color-border))] flex justify-between items-center bg-[rgb(var(--color-background))]">
                     <h3 className="font-bold text-[rgb(var(--color-text))]">Reactions</h3>
                     <button 
                         onClick={() => setViewingReactionsFor(null)}
-                        className="p-1 rounded-full hover:bg-[rgb(var(--color-surface-hover))] text-[rgb(var(--color-text-secondary))]"
+                        className="p-1.5 rounded-full hover:bg-[rgb(var(--color-surface-hover))] text-[rgb(var(--color-text-secondary))]"
                     >
-                        <X size={20} />
+                        <X size={18} />
                     </button>
                 </div>
                 
-                <div className="max-h-[60vh] overflow-y-auto">
-                    {/* Render message snippet for context */}
-                    <div className="p-3 bg-[rgb(var(--color-surface-hover))] text-sm text-[rgb(var(--color-text-secondary))] truncate mx-4 mt-4 rounded-lg border border-[rgb(var(--color-border))] opacity-70">
+                <div className="max-h-[60vh] overflow-y-auto custom-scrollbar">
+                    <div className="p-3 bg-[rgb(var(--color-surface-hover))] text-xs text-[rgb(var(--color-text-secondary))] truncate mx-4 mt-4 rounded-xl border border-[rgb(var(--color-border))] opacity-70 italic">
                          {viewingReactionsFor.content || (viewingReactionsFor.media_type ? `[${viewingReactionsFor.media_type}]` : 'Message')}
                     </div>
 
-                    <div className="p-2">
-                        {/* We flatten all reactions into a single list for the modal */}
+                    <div className="p-2 space-y-1">
                         {viewingReactionsFor.reactions?.map(r => (
-                            <div key={r.id} className="flex items-center gap-3 p-3 hover:bg-[rgb(var(--color-surface-hover))] rounded-xl transition group">
+                            <div key={r.id} className="flex items-center gap-3 p-2 hover:bg-[rgb(var(--color-surface-hover))] rounded-2xl transition group">
                                 <div className="relative">
                                     <img 
                                         src={r.profiles?.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${r.profiles?.username}`} 
                                         alt={r.profiles?.username}
-                                        className="w-10 h-10 rounded-full object-cover bg-[rgb(var(--color-background))]" 
+                                        className="w-8 h-8 rounded-full object-cover bg-[rgb(var(--color-background))]" 
                                     />
-                                    <div className="absolute -bottom-1 -right-1 text-lg leading-none drop-shadow-sm">
+                                    <div className="absolute -bottom-1 -right-1 text-sm leading-none drop-shadow-sm">
                                         {r.emoji}
                                     </div>
                                 </div>
                                 <div className="flex-1 min-w-0">
-                                    <div className="font-semibold text-[rgb(var(--color-text))] flex items-center gap-1">
-                                        {r.profiles?.display_name || 'Unknown User'}
-                                        {r.user_id === user?.id && <span className="text-xs text-[rgb(var(--color-text-secondary))] font-normal">(You)</span>}
-                                    </div>
-                                    <div className="text-xs text-[rgb(var(--color-text-secondary))]">
-                                        @{r.profiles?.username}
+                                    <div className="font-semibold text-sm text-[rgb(var(--color-text))] flex items-center gap-1">
+                                        {r.profiles?.display_name || 'Unknown'}
+                                        {r.user_id === user?.id && <span className="text-[10px] text-[rgb(var(--color-text-secondary))] font-normal bg-[rgb(var(--color-surface-hover))] px-1.5 py-0.5 rounded-full">You</span>}
                                     </div>
                                 </div>
                                 
-                                {/* NEW: X button to remove own reaction */}
                                 {r.user_id === user?.id && (
                                     <button
                                         onClick={(e) => {
                                             e.stopPropagation();
                                             handleRemoveReaction(r.id);
                                         }}
-                                        className="opacity-0 group-hover:opacity-100 p-2 text-[rgb(var(--color-text-secondary))] hover:text-red-500 hover:bg-[rgb(var(--color-surface-hover))] rounded-full transition"
+                                        className="opacity-0 group-hover:opacity-100 p-1.5 text-[rgb(var(--color-text-secondary))] hover:text-red-500 hover:bg-[rgb(var(--color-surface-hover))] rounded-full transition"
                                         title="Remove reaction"
                                     >
-                                        <X size={16} />
+                                        <X size={14} />
                                     </button>
                                 )}
                             </div>
@@ -1182,137 +1364,96 @@ export const Messages = ({
       {/* MEDIA GALLERY MODAL */}
       {showMediaGallery && (
         <div 
-            className="fixed inset-0 z-[60] flex items-center justify-center bg-black bg-opacity-70 backdrop-blur-sm p-4"
+            className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 backdrop-blur-md p-4"
             onClick={() => setShowMediaGallery(false)}
         >
             <div 
-                className="bg-[rgb(var(--color-surface))] w-full max-w-4xl h-[85vh] rounded-2xl shadow-2xl overflow-hidden border border-[rgb(var(--color-border))] flex flex-col"
+                className="bg-[rgb(var(--color-surface))] w-full max-w-4xl h-[85vh] rounded-3xl shadow-2xl overflow-hidden border border-[rgb(var(--color-border))] flex flex-col"
                 onClick={e => e.stopPropagation()}
             >
-                {/* Header */}
                 <div className="p-4 border-b border-[rgb(var(--color-border))] flex justify-between items-center bg-[rgb(var(--color-surface))]">
-                    <h3 className="font-bold text-xl text-[rgb(var(--color-text))]">Shared Media</h3>
+                    <h3 className="font-bold text-lg text-[rgb(var(--color-text))]">Shared Media</h3>
                     <button 
                         onClick={() => setShowMediaGallery(false)}
                         className="p-2 rounded-full hover:bg-[rgb(var(--color-surface-hover))] text-[rgb(var(--color-text-secondary))]"
                     >
-                        <X size={24} />
+                        <X size={20} />
                     </button>
                 </div>
 
-                {/* Tabs */}
-                <div className="flex border-b border-[rgb(var(--color-border))] bg-[rgb(var(--color-surface))]">
-                    <button 
-                        onClick={() => setGalleryTab('image')}
-                        className={`flex-1 py-3 font-semibold flex items-center justify-center gap-2 transition ${galleryTab === 'image' ? 'text-[rgb(var(--color-accent))] border-b-2 border-[rgb(var(--color-accent))]' : 'text-[rgb(var(--color-text-secondary))] hover:bg-[rgb(var(--color-surface-hover))]'}`}
-                    >
-                        <ImageIcon size={18} /> Images
-                    </button>
-                    <button 
-                        onClick={() => setGalleryTab('video')}
-                        className={`flex-1 py-3 font-semibold flex items-center justify-center gap-2 transition ${galleryTab === 'video' ? 'text-[rgb(var(--color-accent))] border-b-2 border-[rgb(var(--color-accent))]' : 'text-[rgb(var(--color-text-secondary))] hover:bg-[rgb(var(--color-surface-hover))]'}`}
-                    >
-                        <Film size={18} /> Videos
-                    </button>
-                    <button 
-                        onClick={() => setGalleryTab('audio')}
-                        className={`flex-1 py-3 font-semibold flex items-center justify-center gap-2 transition ${galleryTab === 'audio' ? 'text-[rgb(var(--color-accent))] border-b-2 border-[rgb(var(--color-accent))]' : 'text-[rgb(var(--color-text-secondary))] hover:bg-[rgb(var(--color-surface-hover))]'}`}
-                    >
-                        <Music size={18} /> Audio
-                    </button>
-                    <button 
-                        onClick={() => setGalleryTab('document')}
-                        className={`flex-1 py-3 font-semibold flex items-center justify-center gap-2 transition ${galleryTab === 'document' ? 'text-[rgb(var(--color-accent))] border-b-2 border-[rgb(var(--color-accent))]' : 'text-[rgb(var(--color-text-secondary))] hover:bg-[rgb(var(--color-surface-hover))]'}`}
-                    >
-                        <FileIcon size={18} /> Files
-                    </button>
+                <div className="flex border-b border-[rgb(var(--color-border))] bg-[rgb(var(--color-surface))] text-xs md:text-sm font-medium">
+                    {['image', 'video', 'audio', 'document'].map((tab) => (
+                        <button 
+                            key={tab}
+                            onClick={() => setGalleryTab(tab as any)}
+                            className={`flex-1 py-3 flex items-center justify-center gap-2 transition uppercase tracking-wide ${galleryTab === tab ? 'text-[rgb(var(--color-accent))] border-b-2 border-[rgb(var(--color-accent))] bg-[rgba(var(--color-accent),0.05)]' : 'text-[rgb(var(--color-text-secondary))] hover:bg-[rgb(var(--color-surface-hover))]'}`}
+                        >
+                            {tab === 'image' && <ImageIcon size={16} />}
+                            {tab === 'video' && <Film size={16} />}
+                            {tab === 'audio' && <Music size={16} />}
+                            {tab === 'document' && <FileIcon size={16} />}
+                            <span className="hidden sm:inline">{tab}s</span>
+                        </button>
+                    ))}
                 </div>
 
-                {/* Content */}
-                <div className="flex-1 overflow-y-auto p-4 bg-[rgb(var(--color-background))]">
+                <div className="flex-1 overflow-y-auto p-4 bg-[rgb(var(--color-background))] custom-scrollbar">
                     {isGalleryLoading ? (
-                        <div className="flex h-full items-center justify-center text-[rgb(var(--color-text-secondary))]">
+                        <div className="flex h-full items-center justify-center text-[rgb(var(--color-text-secondary))] animate-pulse">
                             Loading media...
                         </div>
                     ) : (
                         <>
                             {galleryMedia.filter(m => m.media_type === galleryTab).length === 0 ? (
-                                <div className="flex h-full items-center justify-center text-[rgb(var(--color-text-secondary))] flex-col gap-2">
-                                    <Folder size={48} className="opacity-20" />
-                                    <span>No {galleryTab}s found</span>
+                                <div className="flex h-full items-center justify-center text-[rgb(var(--color-text-secondary))] flex-col gap-2 opacity-50">
+                                    <Folder size={48} strokeWidth={1} />
+                                    <span>No shared {galleryTab}s</span>
                                 </div>
                             ) : (
                                 <>
-                                    {/* GRID VIEW FOR IMAGES AND VIDEOS */}
                                     {(galleryTab === 'image' || galleryTab === 'video') && (
-                                        <div className="grid grid-cols-3 sm:grid-cols-4 gap-1">
+                                        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-1">
                                             {galleryMedia.filter(m => m.media_type === galleryTab).map(msg => (
-                                                <div key={msg.id} className="aspect-square relative group bg-[rgb(var(--color-surface))]">
+                                                <div key={msg.id} className="aspect-square relative group bg-[rgb(var(--color-surface))] overflow-hidden rounded-md border border-[rgb(var(--color-border))]">
                                                     {galleryTab === 'image' ? (
                                                         <a href={msg.media_url!} target="_blank" rel="noopener noreferrer" className="block w-full h-full">
-                                                            <img src={msg.media_url!} className="w-full h-full object-cover hover:opacity-90 transition" alt="Shared" />
+                                                            <img src={msg.media_url!} className="w-full h-full object-cover hover:scale-105 transition duration-300" alt="Shared" />
                                                         </a>
                                                     ) : (
                                                         <video src={msg.media_url!} className="w-full h-full object-cover" controls />
                                                     )}
-                                                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition flex items-end justify-between p-2 pointer-events-none">
-                                                        <span className="text-[10px] text-white">
-                                                            {new Date(msg.created_at).toLocaleDateString()}
-                                                        </span>
-                                                    </div>
                                                 </div>
                                             ))}
                                         </div>
                                     )}
 
-                                    {/* LIST VIEW FOR AUDIO */}
-                                    {galleryTab === 'audio' && (
-                                        <div className="space-y-3">
-                                            {galleryMedia.filter(m => m.media_type === galleryTab).map(msg => (
-                                                <div key={msg.id} className="flex items-center gap-3 p-3 bg-[rgb(var(--color-surface))] rounded-xl border border-[rgb(var(--color-border))]">
-                                                    <div className="w-10 h-10 rounded-full bg-[rgba(var(--color-accent),0.1)] flex items-center justify-center flex-shrink-0 text-[rgb(var(--color-accent))]">
-                                                        <Mic size={20} />
-                                                    </div>
-                                                    <div className="flex-1 min-w-0">
-                                                        <div className="flex justify-between items-center mb-1">
-                                                            <span className="text-xs text-[rgb(var(--color-text-secondary))]">
-                                                                {msg.sender_id === user?.id ? 'You' : selectedUser?.display_name} • {new Date(msg.created_at).toLocaleString()}
-                                                            </span>
-                                                        </div>
-                                                        <AudioPlayer src={msg.media_url!} isOutgoing={false} />
-                                                    </div>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    )}
-
-                                    {/* LIST VIEW FOR FILES */}
-                                    {galleryTab === 'document' && (
+                                    {(galleryTab === 'audio' || galleryTab === 'document') && (
                                         <div className="space-y-2">
                                             {galleryMedia.filter(m => m.media_type === galleryTab).map(msg => (
-                                                <a 
-                                                    key={msg.id} 
-                                                    href={msg.media_url!} 
-                                                    target="_blank" 
-                                                    rel="noopener noreferrer"
-                                                    className="flex items-center gap-3 p-3 bg-[rgb(var(--color-surface))] rounded-xl border border-[rgb(var(--color-border))] hover:bg-[rgb(var(--color-surface-hover))] transition group"
-                                                >
-                                                    <div className="w-10 h-10 rounded-lg bg-[rgba(var(--color-primary),0.1)] flex items-center justify-center flex-shrink-0 text-[rgb(var(--color-primary))]">
-                                                        <FileText size={20} />
+                                                <div key={msg.id} className="flex items-center gap-3 p-3 bg-[rgb(var(--color-surface))] rounded-xl border border-[rgb(var(--color-border))] hover:border-[rgb(var(--color-accent))] transition">
+                                                    <div className="w-10 h-10 rounded-full bg-[rgba(var(--color-accent),0.1)] flex items-center justify-center flex-shrink-0 text-[rgb(var(--color-accent))]">
+                                                        {galleryTab === 'audio' ? <Mic size={20} /> : <FileText size={20} />}
                                                     </div>
                                                     <div className="flex-1 min-w-0">
-                                                        <p className="font-medium text-sm text-[rgb(var(--color-text))] truncate">
-                                                            {/* Try to extract filename from URL or show middle truncated URL */}
-                                                            {msg.content || middleTruncate(msg.media_url!.split('/').pop() || 'Unknown File', 30)}
-                                                        </p>
-                                                        <p className="text-xs text-[rgb(var(--color-text-secondary))]">
-                                                            {new Date(msg.created_at).toLocaleDateString()} • {msg.sender_id === user?.id ? 'Sent by you' : `Sent by ${selectedUser?.display_name}`}
-                                                        </p>
+                                                        {galleryTab === 'document' ? (
+                                                            <a href={msg.media_url!} target="_blank" rel="noopener noreferrer" className="block group">
+                                                                 <p className="font-medium text-sm text-[rgb(var(--color-text))] truncate group-hover:text-[rgb(var(--color-accent))] transition">
+                                                                    {msg.content || middleTruncate(msg.media_url!.split('/').pop() || 'File', 30)}
+                                                                </p>
+                                                                <p className="text-xs text-[rgb(var(--color-text-secondary))]">
+                                                                    {new Date(msg.created_at).toLocaleDateString()}
+                                                                </p>
+                                                            </a>
+                                                        ) : (
+                                                            <>
+                                                                <p className="text-xs text-[rgb(var(--color-text-secondary))] mb-1">
+                                                                    {new Date(msg.created_at).toLocaleDateString()}
+                                                                </p>
+                                                                <AudioPlayer src={msg.media_url!} isOutgoing={false} />
+                                                            </>
+                                                        )}
                                                     </div>
-                                                    <div className="p-2 text-[rgb(var(--color-text-secondary))] group-hover:text-[rgb(var(--color-accent))]">
-                                                        <Link size={18} />
-                                                    </div>
-                                                </a>
+                                                </div>
                                             ))}
                                         </div>
                                     )}
@@ -1326,43 +1467,43 @@ export const Messages = ({
       )}
       
       {/* SIDEBAR */}
-      <div className={`w-full md:w-96 bg-[rgb(var(--color-surface))] border-r border-[rgb(var(--color-border))] flex-shrink-0 flex flex-col transition-transform duration-300 ease-in-out ${showSidebar ? 'translate-x-0' : '-translate-x-full md:translate-x-0'} md:relative fixed inset-y-0 left-0 z-40 md:z-auto`}>
+      <div className={`w-full md:w-80 lg:w-96 bg-[rgb(var(--color-surface))] border-r border-[rgb(var(--color-border))] flex-shrink-0 flex flex-col transition-transform duration-300 ease-in-out ${showSidebar ? 'translate-x-0' : '-translate-x-full md:translate-x-0'} md:relative fixed inset-y-0 left-0 z-40 md:z-auto`}>
         
         <div className="px-4 pt-16 md:pt-4 border-b border-[rgb(var(--color-border))] sticky top-0 bg-[rgb(var(--color-surface))] z-10">
-          {/* Tab Switcher */}
-          <div className="flex gap-2 mb-4 bg-[rgb(var(--color-surface-hover))] p-1 rounded-lg">
-             <button 
-                onClick={() => setActiveTab('chats')}
-                className={`flex-1 py-1.5 text-sm font-bold rounded-md transition ${activeTab === 'chats' ? 'bg-[rgb(var(--color-background))] shadow text-[rgb(var(--color-text))]' : 'text-[rgb(var(--color-text-secondary))] hover:text-[rgb(var(--color-text))]'}`}
-             >
-                Chats
-             </button>
-             <button 
-                onClick={() => setActiveTab('gazebos')}
-                className={`flex-1 py-1.5 text-sm font-bold rounded-md transition ${activeTab === 'gazebos' ? 'bg-[rgb(var(--color-background))] shadow text-[rgb(var(--color-text))]' : 'text-[rgb(var(--color-text-secondary))] hover:text-[rgb(var(--color-text))]'}`}
-             >
-                Gazebos
-             </button>
-          </div>
+          <div className="flex gap-2 mb-4 bg-[rgb(var(--color-surface-hover))] p-1 rounded-xl">
+             <button 
+                onClick={() => setActiveTab('chats')}
+                className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition ${activeTab === 'chats' ? 'bg-[rgb(var(--color-background))] shadow-sm text-[rgb(var(--color-text))]' : 'text-[rgb(var(--color-text-secondary))] hover:text-[rgb(var(--color-text))]'}`}
+             >
+                Chats
+             </button>
+             <button 
+                onClick={() => setActiveTab('gazebos')}
+                className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition ${activeTab === 'gazebos' ? 'bg-[rgb(var(--color-background))] shadow-sm text-[rgb(var(--color-text))]' : 'text-[rgb(var(--color-text-secondary))] hover:text-[rgb(var(--color-text))]'}`}
+             >
+                Gazebos
+             </button>
+          </div>
 
-          <h2 className="text-2xl font-extrabold text-[rgb(var(--color-text))] mb-4">Chats</h2>
-          <div className="relative">
-            <Search size={20} className="absolute left-3 top-3.5 text-[rgb(var(--color-text-secondary))]" />
+          <h2 className="text-xl font-extrabold text-[rgb(var(--color-text))] mb-3 px-1">Messages</h2>
+          <div className="relative mb-3">
+            <Search size={16} className="absolute left-3 top-3 text-[rgb(var(--color-text-secondary))]" />
             <input
               type="text"
               placeholder="Search people..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-[rgb(var(--color-border))] rounded-lg focus:outline-none focus:border-[rgb(var(--color-accent))] bg-[rgb(var(--color-background))] text-[rgb(var(--color-text))]"
+              className="w-full pl-9 pr-4 py-2.5 text-sm border border-[rgb(var(--color-border))] rounded-xl focus:outline-none focus:border-[rgb(var(--color-accent))] focus:ring-1 focus:ring-[rgb(var(--color-accent))] bg-[rgb(var(--color-background))] text-[rgb(var(--color-text))] transition-all"
             />
           </div>
         </div>
 
         {/* Conversation List */}
-        <div className="flex-1 overflow-y-auto">
+        <div className="flex-1 overflow-y-auto custom-scrollbar">
           {displayList.length === 0 && (
-            <div className="p-8 text-center text-[rgb(var(--color-text-secondary))]">
-              {searchQuery ? 'No users found' : 'No conversations yet'}
+            <div className="p-8 text-center text-[rgb(var(--color-text-secondary))] flex flex-col items-center gap-2">
+              <Search size={24} className="opacity-20" />
+              <span className="text-sm">{searchQuery ? 'No users found' : 'Start a new chat'}</span>
             </div>
           )}
 
@@ -1374,28 +1515,28 @@ export const Messages = ({
                 setShowSidebar(false);
                 setSearchQuery('');
               }}
-              className={`w-full flex items-center gap-3 p-4 transition border-b border-[rgb(var(--color-border))] ${selectedUser?.id === u.id ? 'bg-[rgb(var(--color-surface-hover))]' : 'hover:bg-[rgb(var(--color-surface-hover))]'}`}
+              className={`w-full flex items-center gap-3 p-3 transition border-b border-[rgb(var(--color-border))] border-opacity-40 hover:bg-[rgb(var(--color-surface-hover))] ${selectedUser?.id === u.id ? 'bg-[rgba(var(--color-accent),0.05)] border-l-4 border-l-[rgb(var(--color-accent))] pl-2' : ''}`}
             >
               <div className="relative">
                 <img
                   src={u.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${u.username}`}
-                  className="w-14 h-14 rounded-full object-cover"
+                  className="w-12 h-12 rounded-full object-cover bg-[rgb(var(--color-background))]"
                   alt=""
                 />
                 {isUserOnline(u.last_seen) && (
                   <div
-                    className="absolute bottom-0 right-0 w-4 h-4 bg-green-500 rounded-full ring-2 ring-[rgb(var(--color-surface))]"
+                    className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-green-500 rounded-full ring-2 ring-[rgb(var(--color-surface))]"
                   />
                 )}
               </div>
               <div className="text-left flex-1 min-w-0">
-                <div className="font-semibold flex items-center gap-1 truncate text-[rgb(var(--color-text))]">
+                <div className="font-semibold text-sm flex items-center gap-1 truncate text-[rgb(var(--color-text))]">
                   {u.display_name}
-                  {u.verified && <BadgeCheck size={16} className="text-[rgb(var(--color-accent))] flex-shrink-0" />}
+                  {u.verified && <BadgeCheck size={14} className="text-[rgb(var(--color-accent))] flex-shrink-0" />}
                 </div>
-                <div className="text-sm text-[rgb(var(--color-text-secondary))] truncate">
+                <div className="text-xs text-[rgb(var(--color-text-secondary))] truncate mt-0.5">
                   {isUserOnline(u.last_seen)
-                    ? 'Online'
+                    ? <span className="text-green-500 font-medium">Online</span>
                     : formatLastSeen(u.last_seen) || `@${u.username}`
                   }
                 </div>
@@ -1409,80 +1550,78 @@ export const Messages = ({
       <div className={`flex-1 flex flex-col bg-[rgb(var(--color-background))] transition-all duration-300 ease-in-out ${selectedUser ? '' : 'hidden md:flex'}`}>
         {selectedUser ? (
           <>
+            {/* Chat Header */}
             <div className="bg-[rgb(var(--color-surface))] border-b border-[rgb(var(--color-border))] p-3 flex items-center gap-3 sticky top-0 z-20 shadow-sm">
-              <button onClick={() => setShowSidebar(true)} className="md:hidden p-1 rounded-full hover:bg-[rgb(var(--color-surface-hover))] transition">
-                <ArrowLeft size={24} className="text-[rgb(var(--color-text-secondary))]" />
+              <button onClick={() => setShowSidebar(true)} className="md:hidden p-2 rounded-full hover:bg-[rgb(var(--color-surface-hover))] transition active:scale-95">
+                <ArrowLeft size={20} className="text-[rgb(var(--color-text))]" />
               </button>
-              <button onClick={() => goToProfile(selectedUser.id)} className="flex items-center gap-3 flex-1 min-w-0">
+              
+              <button onClick={() => goToProfile(selectedUser.id)} className="flex items-center gap-3 flex-1 min-w-0 group">
                 <div className="relative">
                   <img
                     src={selectedUser.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${selectedUser.username}`}
-                    className="w-10 h-10 rounded-full object-cover"
+                    className="w-10 h-10 rounded-full object-cover ring-2 ring-transparent group-hover:ring-[rgb(var(--color-accent))] transition"
                     alt=""
                   />
                   {isUserOnline(selectedUser.last_seen) && (
-                    <div
-                      className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full ring-2 ring-[rgb(var(--color-surface))]"
-                    />
+                    <div className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-500 rounded-full ring-2 ring-[rgb(var(--color-surface))]" />
                   )}
                 </div>
                 <div className="text-left min-w-0">
-                  <div className="font-bold flex items-center gap-1 truncate text-[rgb(var(--color-text))]">
+                  <div className="font-bold text-sm flex items-center gap-1 truncate text-[rgb(var(--color-text))]">
                     {selectedUser.display_name}
-                    {selectedUser.verified && <BadgeCheck size={16} className="text-[rgb(var(--color-accent))] flex-shrink-0" />}
+                    {selectedUser.verified && <BadgeCheck size={14} className="text-[rgb(var(--color-accent))] flex-shrink-0" />}
                   </div>
-                  <div className="text-sm text-[rgb(var(--color-text-secondary))] truncate">
-                    {isUserOnline(selectedUser.last_seen)
-                      ? 'Online'
-                      : formatLastSeen(selectedUser.last_seen) || `@${selectedUser.username}`
-                    }
-                  </div>
+                  <div className="text-xs text-[rgb(var(--color-text-secondary))] truncate">
+                  {isUserOnline(selectedUser.last_seen) 
+                    ? <span className="text-green-500 font-medium">Active now</span>
+                    : selectedUser.last_seen 
+                        ? `Last seen ${new Date(selectedUser.last_seen).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}`
+                        : `@${selectedUser.username}`
+                  }
+                </div>
                 </div>
               </button>
               
-              <div className="flex gap-1 pr-1">
+              <div className="flex gap-1 items-center">
                 <button
                   onClick={() => dispatchStartCall(selectedUser, 'audio')}
-                  className="p-2 rounded-full hover:bg-[rgb(var(--color-surface-hover))] transition text-[rgb(var(--color-text-secondary))]"
-                  title="Start audio call"
+                  className="p-2 rounded-full hover:bg-[rgb(var(--color-surface-hover))] transition text-[rgb(var(--color-text-secondary))] hover:text-[rgb(var(--color-accent))]"
+                  title="Audio call"
                 >
-                  <Phone size={20} />
+                  <Phone size={18} />
                 </button>
                 <button
                   onClick={() => dispatchStartCall(selectedUser, 'video')}
-                  className="p-2 rounded-full hover:bg-[rgb(var(--color-surface-hover))] transition text-[rgb(var(--color-text-secondary))]"
-                  title="Start video call"
+                  className="p-2 rounded-full hover:bg-[rgb(var(--color-surface-hover))] transition text-[rgb(var(--color-text-secondary))] hover:text-[rgb(var(--color-accent))]"
+                  title="Video call"
                 >
-                  <Video size={20} />
+                  <Video size={18} />
                 </button>
-                <div className="w-px h-6 bg-[rgb(var(--color-border))] mx-1 self-center"></div>
                 <button
                   onClick={() => {
                       setShowMediaGallery(true);
                       loadGalleryMedia();
                   }}
-                  className="p-2 rounded-full hover:bg-[rgb(var(--color-surface-hover))] transition text-[rgb(var(--color-text-secondary))]"
-                  title="View Media & Files"
+                  className="p-2 rounded-full hover:bg-[rgb(var(--color-surface-hover))] transition text-[rgb(var(--color-text-secondary))] hover:text-[rgb(var(--color-accent))]"
+                  title="View Media"
                 >
-                  <Folder size={20} />
+                  <MoreVertical size={18} />
                 </button>
               </div>
             </div>
 
+            {/* Messages Scroll Area */}
             <div 
               ref={messagesContainerRef}
               onScroll={handleScroll}
-              className="flex-1 overflow-y-auto p-4 space-y-4 bg-[rgb(var(--color-background))]"
+              className="flex-1 overflow-y-auto overflow-x-hidden p-2 sm:p-4 space-y-1 bg-[rgb(var(--color-background))]"
             >
               {isLoadingMore && (
-                <div className="flex justify-center p-4">
+                <div className="flex justify-center p-4 w-full">
                   <div className="logo-loading-container w-6 h-6 relative">
                       <svg xmlns="http://www.w3.org/2000/svg" viewBox={SVG_VIEWBOX} className="logo-svg">
-                          <defs>
-                              <clipPath id="logo-clip">
-                                  <rect id="clip-rect" x="0" y="0" width="100%" height="100%" />
-                              </clipPath>
-                          </defs>
+                          <defs><clipPath id="logo-clip"><rect id="clip-rect" x="0" y="0" width="100%" height="100%" /></clipPath></defs>
                           <path d={SVG_PATH} fill="none" stroke="rgb(var(--color-primary))" strokeWidth="10" strokeOpacity="0.1" />
                           <path d={SVG_PATH} fill="rgb(var(--color-primary))" clipPath="url(#logo-clip)" className="logo-fill-animated" />
                       </svg>
@@ -1490,396 +1629,427 @@ export const Messages = ({
                 </div>
               )}
             
-              {messages.map((msg) => {
-                const isOnlyAudio = msg.media_type === 'audio' && !msg.content.trim();
-                const messageWidthClass = isOnlyAudio 
-                    ? 'max-w-[70%] sm:max-w-[50%] md:max-w-[65%] text-xs'
-                    : 'max-w-[70%] sm:max-w-[45%] md:max-w-[50%] text-xs';
-
+              {messages.map((msg, index) => {
+                const isMe = msg.sender_id === user!.id;
+                // Check if the next message is from the same user to group visually
+                const nextMsg = messages[index + 1];
+                const isLastInGroup = !nextMsg || nextMsg.sender_id !== msg.sender_id;
+                
                 return (
                 <div
                   key={msg.id}
                   id={`msg-${msg.id}`}
-                  className={`flex items-center gap-2 group transition-all duration-300 ${msg.sender_id === user!.id ? 'justify-end' : 'justify-start'}`}
+                  className={`flex w-full mb-1 group relative ${isMe ? 'justify-end' : 'justify-start'}`}
                 >
-                  {msg.sender_id === user!.id && (
-                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition">
-                        <button
-                        onClick={(e) => {
-                            const rect = e.currentTarget.getBoundingClientRect();
-                            setReactionMenu({ messageId: msg.id, x: rect.left, y: rect.top, isOutgoing: true });
-                        }}
-                        className="p-1 rounded-full text-[rgb(var(--color-text-secondary))] hover:bg-[rgb(var(--color-surface-hover))]"
-                        title="Add Reaction"
-                        >
-                        <Smile size={16} />
-                        </button>
-                        <button
-                        onClick={() => setReplyingTo(msg)}
-                        className="p-1 rounded-full text-[rgb(var(--color-text-secondary))] hover:bg-[rgb(var(--color-surface-hover))]"
-                        title="Reply"
-                        >
-                        <CornerUpLeft size={16} />
-                        </button>
-                    </div>
-                  )}
+                    {/* Action Buttons (Hover) */}
+                    {isMe && (
+                        <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition duration-200 mr-2 self-center">
+                            <button onClick={(e) => { const rect = e.currentTarget.getBoundingClientRect(); setReactionMenu({ messageId: msg.id, x: rect.left, y: rect.top, isOutgoing: true }); }} className="p-1.5 rounded-full text-[rgb(var(--color-text-secondary))] hover:bg-[rgb(var(--color-surface-hover))]">
+                                <Smile size={14} />
+                            </button>
+                            <button onClick={() => setReplyingTo(msg)} className="p-1.5 rounded-full text-[rgb(var(--color-text-secondary))] hover:bg-[rgb(var(--color-surface-hover))]">
+                                <CornerUpLeft size={14} />
+                            </button>
+                        </div>
+                    )}
 
+                  {/* Message Bubble */}
                   <div
-                    className={`${messageWidthClass} px-3 py-2 rounded-xl shadow-md relative ${
-                      msg.sender_id === user!.id
-                        ? 'bg-[rgb(var(--color-accent))] text-[rgb(var(--color-text-on-primary))] rounded-br-none'
-                        : 'bg-[rgb(var(--color-surface))] text-[rgb(var(--color-text))] border border-[rgb(var(--color-border))] rounded-tl-none'
-                    }`}
+                    onContextMenu={(e) => {
+                        e.preventDefault(); // Prevent native browser context menu
+                        const rect = e.currentTarget.getBoundingClientRect();
+                        setReactionMenu({ messageId: msg.id, x: rect.left + (rect.width / 2), y: rect.top, isOutgoing: isMe });
+                    }}
+                    onTouchStart={(e) => {
+                        isLongPress.current = false;
+                        longPressTimer.current = setTimeout(() => {
+                            isLongPress.current = true;
+                            const rect = e.currentTarget.getBoundingClientRect();
+                            // Mobile vibration feedback
+                            if (navigator.vibrate) navigator.vibrate(50);
+                            setReactionMenu({ messageId: msg.id, x: rect.left + (rect.width / 2), y: rect.top, isOutgoing: isMe });
+                        }, 500); // 500ms long press
+                    }}
+                    onTouchEnd={() => {
+                        if (longPressTimer.current) clearTimeout(longPressTimer.current);
+                    }}
+                    onTouchMove={() => {
+                        // If user scrolls, cancel long press
+                        if (longPressTimer.current) clearTimeout(longPressTimer.current);
+                    }}
+                    // Keep the existing classes
+                    className={`relative max-w-[85%] md:max-w-[70%] lg:max-w-[60%] min-w-0 px-3 py-1.5 shadow-sm break-words select-none cursor-pointer
+                      ${isMe 
+                        ? `bg-gradient-to-br from-[rgb(var(--color-primary))] to-[rgb(var(--color-accent))] text-[rgb(var(--color-text-on-primary))] rounded-2xl rounded-tr-sm ${!isLastInGroup ? 'mb-0.5' : ''}`
+                        : `bg-[rgb(var(--color-surface))] text-[rgb(var(--color-text))] border border-[rgb(var(--color-border))] rounded-2xl rounded-tl-sm ${!isLastInGroup ? 'mb-0.5' : ''}`
+                      }
+                      ${msg.is_deleted ? 'opacity-70 italic' : ''}
+                    `}
                   >
+                    {/* Soft Delete Masking */}
+                    {msg.is_deleted ? (
+                        <div className="flex items-center gap-2 text-sm py-1">
+                            <Trash2 size={14} className="opacity-50" />
+                            <span>[Message Deleted]</span>
+                        </div>
+                    ) : (
+                    <>
+                    {/* Reply Context */}
                     {msg.reply_to_id && msg.reply_to && (() => {
                       const repliedToMsg = msg.reply_to;
                       const isReplyToSelf = repliedToMsg.sender_id === user!.id;
                       
                       return (
                         <div 
-                            // --- CLICK HANDLER ---
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                scrollToMessage(msg.reply_to_id!);
-                            }}
-                            className={`p-2 rounded-lg mb-2 cursor-pointer hover:opacity-80 transition ${ // Added cursor-pointer & hover
-                          msg.sender_id === user!.id
-                            ? 'bg-[rgba(var(--color-surface),0.2)]' 
-                            : 'bg-[rgb(var(--color-surface-hover))]' 
-                        }`}>
-                          <div className={`font-bold text-xs mb-0.5 ${
-                            msg.sender_id === user!.id 
-                              ? 'text-[rgba(var(--color-text-on-primary),0.9)]' 
-                              : 'text-[rgb(var(--color-accent))]'
-                          }`}>
-                            {isReplyToSelf ? 'You' : selectedUser?.display_name}
+                            onClick={(e) => { e.stopPropagation(); scrollToMessage(msg.reply_to_id!); }}
+                            className={`flex items-center gap-2 p-1.5 rounded-lg mb-1 cursor-pointer transition select-none ${
+                                isMe ? 'bg-black/10 hover:bg-black/20' : 'bg-[rgb(var(--color-surface-hover))] hover:bg-black/5'
+                            }`}
+                        >
+                          <div className={`w-0.5 h-6 rounded-full self-stretch ${isMe ? 'bg-white/50' : 'bg-[rgb(var(--color-accent))]'}`} />
+                          <div className="flex-1 min-w-0">
+                             <div className={`text-[10px] font-bold ${isMe ? 'text-white/90' : 'text-[rgb(var(--color-accent))]'}`}>
+                                {isReplyToSelf ? 'You' : selectedUser?.display_name}
+                             </div>
+                            <div className={`text-[10px] truncate ${isMe ? 'text-white/70' : 'text-[rgb(var(--color-text-secondary))]'}`}>
+                              {repliedToMsg.content 
+                                            ? (repliedToMsg.content.length > 20 ? repliedToMsg.content.substring(0, 20) + '...' : repliedToMsg.content)
+                                            : <span className="italic">[{repliedToMsg.media_type || '...'}]</span>
+                              }
+                            </div>
                           </div>
-                          <p className="text-xs opacity-90 truncate whitespace-pre-wrap break-words">
-                            {repliedToMsg.content ? repliedToMsg.content : (
-                              <span className="flex items-center gap-1 italic opacity-80">
-                                {repliedToMsg.media_type === 'image' && <><Paperclip size={12} className="inline-block" /> Image</>}
-                                {repliedToMsg.media_type === 'video' && <><Paperclip size={12} className="inline-block" /> Video</>}
-                                {repliedToMsg.media_type === 'audio' && <><Mic size={12} className="inline-block" /> Voice Message</>}
-                                {repliedToMsg.media_type === 'document' && <><FileText size={12} className="inline-block" /> File</>}
-                                {!repliedToMsg.media_type && '[Message]'}
-                              </span>
-                            )}
-                          </p>
                         </div>
                       );
                     })()}
 
-                    {msg.media_url && (
-                      <div className={msg.content.trim() ? "mt-2" : ""}>
+                    {/* Media Content */}
+                    {msg.media_url && !msg.is_deleted && (
+                      <div className={`mb-1 ${msg.content ? "pb-1" : ""}`}>
                         {msg.media_type === 'image' && (
-                          <img src={msg.media_url} className={`${msg.content.trim() ? "mb-2" : ""} rounded-lg max-w-full h-auto`} alt="Message" />
+                          <img src={msg.media_url} className="rounded-lg w-full h-auto max-h-80 object-cover" alt="Image" loading="lazy" />
                         )}
                         {msg.media_type === 'video' && (
-                          <video controls className={`${msg.content.trim() ? "mb-2" : ""} rounded-lg max-w-full`}>
+                          <video controls className="rounded-lg w-full max-h-80 bg-black">
                             <source src={msg.media_url} />
                           </video>
                         )}
                         {msg.media_type === 'audio' && (
-                          <div className={msg.content.trim() ? "mb-2" : ""}>
-                            <AudioPlayer src={msg.media_url} isOutgoing={msg.sender_id === user!.id} />
-                          </div>
+                            <div className="pt-1">
+                                <AudioPlayer src={msg.media_url} isOutgoing={isMe} />
+                            </div>
                         )}
                         {msg.media_type === 'document' && (
                           <a
                             href={msg.media_url}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1 text-sm text-[rgb(var(--color-primary))] underline"
+                            className={`flex items-center gap-2 p-2 rounded-lg transition ${isMe ? 'bg-white/10 hover:bg-white/20' : 'bg-[rgb(var(--color-surface-hover))] hover:bg-[rgb(var(--color-border))]'}`}
                           >
-                            <FileText size={14} /> Open File
+                            <FileText size={16} /> 
+                            <span className="underline decoration-dotted text-xs truncate">Open File</span>
                           </a>
                         )}
                       </div>
                     )}
-                    <p className="whitespace-pre-wrap break-words text-sm">{msg.content}</p>
-                    {/* NEW: Embed Section */}
-                    {/* Only show embed if there is content, a URL exists, and we aren't already showing a direct media attachment */}
-                    {msg.content && extractFirstUrl(msg.content) && !msg.media_url && (
-                        <MessageEmbed url={extractFirstUrl(msg.content)!} />
-                    )}
                     
-                    <div
-                      className={`text-[10px] flex items-center justify-end mt-1.5 ${
-                        msg.sender_id === user!.id ? 'text-[rgba(var(--color-text-on-primary),0.9)]' : 'text-[rgb(var(--color-text-secondary))]'
-                      }`}
-                    >
-                      <span className="mr-1">
-                        {new Date(msg.created_at).toLocaleTimeString([], {
-                          day: 'numeric',
-                          month: 'short',
-                          hour: '2-digit',
-                          minute: '2-digit',
-                        })}
+                    {/* Text Content */}
+                    {msg.content && (
+                        <p className={`whitespace-pre-wrap leading-relaxed text-sm md:text-sm text-left ${isOnlyEmoji(msg.content) ? 'text-2xl md:text-3xl' : ''}`}>
+                            {msg.content}
+                        </p>
+                    )}
+
+                    {/* Embeds */}
+                    {msg.content && extractFirstUrl(msg.content) && !msg.media_url && (
+                        <div className="mt-2 rounded-lg overflow-hidden text-xs">
+                             <MessageEmbed url={extractFirstUrl(msg.content)!} />
+                        </div>
+                    )}
+                    </>
+                  )}
+                    
+                    {/* Timestamp & Status */}
+                    <div className={`flex items-center justify-end gap-1 mt-1 select-none ${isMe ? 'text-white/70' : 'text-[rgb(var(--color-text-secondary))] opacity-60'}`}>
+                      {msg.is_edited && !msg.is_deleted && <span className="text-[9px] italic opacity-80">(Edited)</span>}
+                      <span className="text-[9px] font-medium tracking-tight">
+                        {new Date(msg.created_at).toLocaleString([], { day: 'numeric', month: 'numeric', year: '2-digit', hour: 'numeric', minute: '2-digit' })}
                       </span>
-                      {msg.sender_id === user!.id && (
-                        msg.read ? <CheckCheck size={14} className="text-blue-400" /> : <Check size={14} />
+                      {isMe && !msg.is_deleted && (
+                        msg.read 
+                          ? <CheckCheck size={14} className="text-sky-300 drop-shadow-[0_0_2px_rgba(125,211,252,0.5)]" /> 
+                          : <Check size={12} />
                       )}
                     </div>
 
-                 {/* Reactions Display */}
+                    {/* Reactions Pill (Absolute or nested) */}
                      {msg.reactions && msg.reactions.length > 0 && (
-                        <div className="flex flex-wrap gap-1 mt-2 -ml-1">
+                        <div className="flex flex-wrap gap-1 mt-1.5 pt-1 border-t border-white/10">
                             {groupReactions(msg.reactions, user!.id).map(reaction => (
                                 <button
                                     key={reaction.emoji}
-                                    // CHANGE: OnClick now opens the modal (setViewingReactionsFor) instead of toggling immediate reaction
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        setViewingReactionsFor(msg);
-                                    }}
-                                    className={`flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] border transition ${
-                                        reaction.hasReacted 
-                                            ? msg.sender_id === user!.id 
-                                                ? 'bg-[rgba(255,255,255,0.2)] border-[rgba(255,255,255,0.4)] text-white' 
-                                                : 'bg-[rgba(var(--color-primary),0.1)] border-[rgb(var(--color-primary))] text-[rgb(var(--color-primary))]'
-                                            : 'bg-[rgb(var(--color-surface))] border-[rgb(var(--color-border))] text-[rgb(var(--color-text-secondary))]'
+                                    onClick={(e) => { e.stopPropagation(); setViewingReactionsFor(msg); }}
+                                    className={`flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[9px] font-medium transition active:scale-95 ${
+                                        isMe 
+                                            ? 'bg-white/20 text-white hover:bg-white/30' 
+                                            : 'bg-[rgb(var(--color-surface-hover))] border border-[rgb(var(--color-border))] text-[rgb(var(--color-text))]'
                                     }`}
                                 >
                                     <span>{reaction.emoji}</span>
-                                    <span className="font-bold">{reaction.count}</span>
+                                    <span className={reaction.count > 1 ? '' : 'hidden'}>{reaction.count}</span>
                                 </button>
                             ))}
                         </div>
                     )}
-
                   </div>
 
-                  {msg.sender_id !== user!.id && (
-                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition">
-                        <button
-                        onClick={(e) => {
-                            const rect = e.currentTarget.getBoundingClientRect();
-                            setReactionMenu({ messageId: msg.id, x: rect.right, y: rect.top, isOutgoing: false });
-                        }}
-                        className="p-1 rounded-full text-[rgb(var(--color-text-secondary))] hover:bg-[rgb(var(--color-surface-hover))]"
-                        title="Add Reaction"
-                        >
-                        <Smile size={16} />
+                  {/* Other's Action Buttons */}
+                  {!isMe && !msg.is_deleted && (
+                    <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition duration-200 ml-2 self-center">
+                        <button onClick={(e) => { const rect = e.currentTarget.getBoundingClientRect(); setReactionMenu({ messageId: msg.id, x: rect.right, y: rect.top, isOutgoing: false }); }} className="p-1.5 rounded-full text-[rgb(var(--color-text-secondary))] hover:bg-[rgb(var(--color-surface-hover))]">
+                            <MoreVertical size={14} /> 
                         </button>
-                        <button
-                        onClick={() => setReplyingTo(msg)}
-                        className="p-1 rounded-full text-[rgb(var(--color-text-secondary))] hover:bg-[rgb(var(--color-surface-hover))]"
-                        title="Reply"
-                        >
-                        <CornerUpLeft size={16} />
+                        <button onClick={() => setReplyingTo(msg)} className="p-1.5 rounded-full text-[rgb(var(--color-text-secondary))] hover:bg-[rgb(var(--color-surface-hover))]">
+                            <CornerUpLeft size={14} />
                         </button>
                     </div>
                   )}
                 </div>
               )})}
 
+              {/* Typing Indicator */}
               {isOtherTyping && (
-                <div className="flex justify-start">
-                  <div className="bg-[rgb(var(--color-surface))] px-3 py-2 rounded-xl shadow-sm border border-[rgb(var(--color-border))] rounded-tl-none">
-                    <div className="flex gap-1 items-end">
-                      <span className="w-2 h-2 bg-[rgb(var(--color-text-secondary))] rounded-full animate-pulse" style={{ animationDelay: '0ms' }}></span>
-                      <span className="w-2 h-2 bg-[rgb(var(--color-text-secondary))] rounded-full animate-pulse" style={{ animationDelay: '200ms' }}></span>
-                      <span className="w-2 h-2 bg-[rgb(var(--color-text-secondary))] rounded-full animate-pulse" style={{ animationDelay: '400ms' }}></span>
+                <div className="flex justify-start w-full mb-2">
+                  <div className="bg-[rgb(var(--color-surface))] px-3 py-2 rounded-2xl rounded-tl-sm shadow-sm border border-[rgb(var(--color-border))]">
+                    <div className="flex gap-1 items-center h-4">
+                      <span className="w-1.5 h-1.5 bg-[rgb(var(--color-text-secondary))] rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></span>
+                      <span className="w-1.5 h-1.5 bg-[rgb(var(--color-text-secondary))] rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></span>
+                      <span className="w-1.5 h-1.5 bg-[rgb(var(--color-text-secondary))] rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></span>
                     </div>
                   </div>
                 </div>
               )}
 
-              <div ref={messagesEndRef} />
+              <div ref={messagesEndRef} className="h-2" />
             </div>
 
-            <div className="bg-[rgb(var(--color-surface))]">
-              {replyingTo && (
-                <div className="p-3 bg-[rgb(var(--color-surface-hover))] flex items-center justify-between mx-3 mt-3 rounded-lg">
-                  <div className="flex-1 min-w-0">
-                    <div className="text-xs font-bold text-[rgb(var(--color-text-secondary))] flex items-center gap-1">
-                      <CornerUpLeft size={14} />
-                      Replying to {replyingTo.sender_id === user!.id ? 'yourself' : selectedUser?.display_name}
-                    </div>
-                    <p className="text-sm text-[rgb(var(--color-text))] truncate mt-0.5">
-                      {replyingTo.content ? replyingTo.content : (
-                        <span className="flex items-center gap-1 italic opacity-80">
-                          {replyingTo.media_type === 'image' && <><Paperclip size={12} className="inline-block" /> Image</>}
-                          {replyingTo.media_type === 'video' && <><Paperclip size={12} className="inline-block" /> Video</>}
-                          {replyingTo.media_type === 'audio' && <><Mic size={12} className="inline-block" /> Voice Message</>}
-                          {replyingTo.media_type === 'document' && <><FileText size={12} className="inline-block" /> File</>}
-                          {!replyingTo.media_type && '[Message]'}
-                        </span>
-                      )}
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setReplyingTo(null)}
-                    className="p-1 hover:bg-[rgb(var(--color-surface))] rounded-full transition text-[rgb(var(--color-text))]"
-                  >
-                    <X size={18} />
-                  </button>
+            {/* Input Area */}
+            <div className="p-2 sm:p-3 md:p-4 bg-[rgb(var(--color-background))]">
+                <div className="bg-[rgb(var(--color-surface))] border border-[rgb(var(--color-border))] rounded-3xl shadow-lg flex flex-col relative transition-all duration-200 focus-within:ring-1 focus-within:ring-[rgb(var(--color-accent))] focus-within:border-[rgb(var(--color-accent))]">
+                    
+                    {/* Reply Preview */}
+                    {replyingTo && (
+                        <div className="px-4 pt-3 flex items-center justify-between">
+                            <div className="flex items-center gap-2 px-3 py-2 bg-[rgb(var(--color-surface-hover))] rounded-xl w-full border-l-4 border-[rgb(var(--color-accent))]">
+                                <div className="flex-1 min-w-0 overflow-hidden"> {/* Added overflow-hidden */}
+                                    <div className="text-xs font-bold text-[rgb(var(--color-accent))] mb-0.5 truncate"> {/* Added truncate to name too */}
+                                        Replying to {replyingTo.sender_id === user!.id ? 'yourself' : selectedUser?.display_name}
+                                    </div>
+                                    <p className="text-xs text-[rgb(var(--color-text-secondary))] block whitespace-nowrap overflow-hidden">
+                                        {replyingTo.content 
+                                            ? (replyingTo.content.length > 20 ? replyingTo.content.substring(0, 20) + '...' : replyingTo.content)
+                                            : <span className="italic">[{replyingTo.media_type || 'Media'}]</span>
+                                        }
+                                    </p>
+                                </div>
+                                <button onClick={() => setReplyingTo(null)} className="p-1 rounded-full hover:bg-black/10 text-[rgb(var(--color-text-secondary))]">
+                                    <X size={14} />
+                                </button>
+                            </div>
+                        </div>
+                    )}
+                    
+                    {/* File Preview */}
+                    {(file || remoteUrl) && (
+                        <div className="px-4 pt-3">
+                            <div className="relative inline-block">
+                                {getPreview()}
+                                <button onClick={() => { setFile(null); setRemoteUrl(''); setMediaInputMode(null); }} className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-0.5 shadow-md hover:bg-red-600">
+                                    <X size={12} />
+                                </button>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* URL Input */}
+                    {mediaInputMode === 'url' && !file && !remoteUrl && (
+                        <div className="px-4 pt-3 pb-1 flex items-center gap-2">
+                             <input type="url" autoFocus value={remoteUrl} onChange={(e) => setRemoteUrl(e.target.value)} placeholder="https://..." className="flex-1 text-sm bg-transparent border-none focus:ring-0 text-[rgb(var(--color-text))]" />
+                             <button onClick={() => setMediaInputMode(null)} className="text-[rgb(var(--color-text-secondary))]"><X size={16} /></button>
+                        </div>
+                    )}
+
+                   {/* Editing Preview Bar */}
+                    {editingMessage && (
+                        <div className="px-4 pt-3 flex items-center justify-between bg-[rgb(var(--color-primary))] text-[rgb(var(--color-text-on-primary))]">
+                             <div className="flex items-center gap-2 text-sm font-semibold">
+                                 <Edit2 size={16} /> Editing Message
+                             </div>
+                             <button onClick={() => { setEditingMessage(null); setContent(''); }} className="p-1 hover:bg-white/20 rounded-full">
+                                 <X size={16} />
+                             </button>
+                        </div>
+                    )}
+
+                    {/* GIF PICKER UI */}
+                    {showGifPicker && (
+                        <div 
+                            ref={gifPickerRef} 
+                            className="absolute bottom-full left-0 right-0 h-80 bg-[rgb(var(--color-surface))] border-t border-[rgb(var(--color-border))] rounded-t-2xl z-20 flex flex-col shadow-2xl"
+                        >
+                            <div className="p-3 border-b border-[rgb(var(--color-border))] flex gap-2 items-center">
+                                <div className="relative flex-1">
+                                    <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[rgb(var(--color-text-secondary))]" />
+                                    <input 
+                                        type="text" 
+                                        placeholder="Search GIFs..." 
+                                        value={gifQuery}
+                                        onChange={e => setGifQuery(e.target.value)}
+                                        // Fixed: Added text-[rgb(var(--color-text))] and improved focus states
+                                        className="w-full pl-9 pr-3 py-2 text-sm bg-[rgb(var(--color-background))] text-[rgb(var(--color-text))] rounded-xl border border-[rgb(var(--color-border))] focus:border-[rgb(var(--color-accent))] focus:outline-none"
+                                        autoFocus
+                                    />
+                                </div>
+                                <button onClick={() => setShowGifPicker(false)} className="p-2 hover:bg-[rgb(var(--color-surface-hover))] rounded-full text-[rgb(var(--color-text-secondary))]">
+                                    <X size={20} />
+                                </button>
+                            </div>
+                            
+                            {/* Fixed: Use CSS Columns (Masonry) instead of Grid to handle variable height GIFs */}
+                            <div className="flex-1 overflow-y-auto p-2 custom-scrollbar">
+                                <div className="columns-2 md:columns-3 gap-2 space-y-2">
+                                    {gifs.map(gif => (
+                                        <button 
+                                            key={gif.id} 
+                                            onClick={() => sendGif(gif.media_formats.gif.url)} 
+                                            className="w-full block rounded-lg overflow-hidden hover:opacity-90 hover:ring-2 hover:ring-[rgb(var(--color-accent))] transition-all break-inside-avoid"
+                                        >
+                                            <img 
+                                                src={gif.media_formats.tinygif.url} 
+                                                alt="GIF" 
+                                                className="w-full h-auto object-cover" 
+                                                loading="lazy"
+                                            />
+                                        </button>
+                                    ))}
+                                </div>
+                                {gifs.length === 0 && (
+                                    <div className="flex items-center justify-center h-full text-[rgb(var(--color-text-secondary))] text-sm">
+                                        No GIFs found
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    )}
+
+                    <form onSubmit={editingMessage ? handleUpdateMessage : sendMessage} className="flex items-end gap-2 p-2 relative">
+                         {isUploading && (
+                            <div className="absolute top-0 left-0 right-0 h-0.5 bg-[rgb(var(--color-surface-hover))]">
+                                <div className="h-full bg-[rgb(var(--color-accent))] transition-all duration-300" style={{ width: `${uploadProgress}%` }} />
+                            </div>
+                        )}
+
+                        {/* Attach Button (Disabled during edit) */}
+                        {!editingMessage && (
+                            <div className="relative">
+                                <button
+                                    type="button"
+                                    onClick={() => setShowMediaMenu(!showMediaMenu)}
+                                    className={`p-2.5 rounded-full transition duration-200 ${showMediaMenu ? 'bg-[rgb(var(--color-accent))] text-[rgb(var(--color-text-on-primary))] rotate-45' : 'text-[rgb(var(--color-text-secondary))] hover:bg-[rgb(var(--color-surface-hover))]'}`}
+                                >
+                                    <Paperclip size={20} />
+                                </button>
+                                
+                                {/* Attachment Menu */}
+                                {showMediaMenu && (
+                                    <div className="absolute bottom-full left-0 mb-2 w-56 bg-[rgb(var(--color-surface))] border border-[rgb(var(--color-border))] rounded-2xl shadow-xl overflow-hidden z-30 animate-in slide-in-from-bottom-2 fade-in duration-200">
+                                        <button type="button" className="w-full text-left p-3 text-sm text-[rgb(var(--color-text))] hover:bg-[rgb(var(--color-surface-hover))] flex items-center gap-3" onClick={() => { setShowMediaMenu(false); fileInputRef.current?.click(); setRemoteUrl(''); setMediaInputMode('file'); }}>
+                                            <Folder size={18} className="text-[rgb(var(--color-accent))]" /> Upload File
+                                        </button>
+                                        <button type="button" className="w-full text-left p-3 text-sm text-[rgb(var(--color-text))] hover:bg-[rgb(var(--color-surface-hover))] flex items-center gap-3" onClick={() => { setShowMediaMenu(false); setFile(null); setRemoteUrl(''); setMediaInputMode('url'); }}>
+                                            <Link size={18} className="text-[rgb(var(--color-accent))]" /> Paste Link
+                                        </button>
+                                        <div className="h-px bg-[rgb(var(--color-border))]" />
+                                        <button type="button" className="w-full text-left p-3 text-sm text-[rgb(var(--color-text))] hover:bg-[rgb(var(--color-surface-hover))] flex items-center gap-3" onClick={() => { setShowMediaMenu(false); setShowGifPicker(true); }}>
+                                            <Gift size={18} className="text-pink-500" /> Insert GIF
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
+                        <input ref={fileInputRef} type="file" accept="image/*,video/*,.pdf,.doc,.docx,.txt" onChange={(e) => { setFile(e.target.files?.[0] || null); setRemoteUrl(''); }} className="hidden" />
+
+                        {/* Text Input */}
+                        <textarea
+                            value={content}
+                            onChange={(e) => handleInputChange(e as any)}
+                            onPaste={handlePaste}
+                            placeholder={editingMessage ? "Edit your message..." : (isRecording ? "Recording..." : "Message...")}
+                            disabled={isRecording}
+                            className="flex-1 py-2.5 px-2 bg-transparent border-none focus:ring-0 resize-none text-sm text-[rgb(var(--color-text))] placeholder-[rgb(var(--color-text-secondary))] max-h-32 custom-scrollbar"
+                            rows={1}
+                            style={{ minHeight: '44px' }}
+                            onKeyDown={(e) => {
+                                if (e.key === 'Enter' && !e.shiftKey) {
+                                    e.preventDefault();
+                                    editingMessage ? handleUpdateMessage(e) : sendMessage(e);
+                                }
+                            }}
+                        />
+
+                        {/* Right Actions */}
+                        <div className="flex items-center gap-1 pb-1">
+                            {content.trim() || file || remoteUrl ? (
+                                <button
+                                    type="submit"
+                                    disabled={isUploading}
+                                    className={`p-2.5 rounded-full hover:brightness-110 shadow-md transition-all active:scale-95 disabled:opacity-50 ${editingMessage ? 'bg-green-500 text-white' : 'bg-[rgb(var(--color-accent))] text-[rgb(var(--color-text-on-primary))]'}`}
+                                >
+                                    {editingMessage ? <Check size={18} /> : <Send size={18} className={isUploading ? "animate-pulse" : ""} />}
+                                </button>
+                            ) : (
+                                !editingMessage && (
+                                    <button
+                                        type="button"
+                                        onClick={toggleRecording}
+                                        className={`p-2.5 rounded-full transition-all duration-200 ${isRecording ? 'bg-red-500 text-white animate-pulse shadow-red-500/30 shadow-lg' : 'text-[rgb(var(--color-text-secondary))] hover:bg-[rgb(var(--color-surface-hover))]'}`}
+                                    >
+                                        {isRecording ? <div className="w-4 h-4 bg-white rounded-sm" /> : <Mic size={20} />}
+                                    </button>
+                                )
+                            )}
+                        </div>
+                    </form>
                 </div>
-              )}
-              
-              {(file || remoteUrl) && (
-                <div className="mb-3 p-3 bg-[rgb(var(--color-surface-hover))] rounded-lg flex items-center justify-between mx-3 mt-3">
-                  <div className="flex-1 pr-2">
-                    {getPreview()}
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setFile(null);
-                      setRemoteUrl('');
-                      setMediaInputMode(null);
-                    }}
-                    className="p-1 hover:bg-[rgb(var(--color-surface-hover))] rounded-full transition text-[rgb(var(--color-text))]"
-                  >
-                    <X size={18} />
-                  </button>
-                </div>
-              )}
-              
-              {mediaInputMode === 'url' && !file && !remoteUrl && (
-                  <div className="p-3">
-                      <div className="flex items-center gap-2">
-                          <input
-                              type="url"
-                              value={remoteUrl}
-                              onChange={(e) => {
-                                setRemoteUrl(e.target.value);
-                                setFile(null);
-                              }}
-                              placeholder="Paste media URL..."
-                              className="flex-1 px-3 py-2 text-sm border border-[rgb(var(--color-border))] rounded-full focus:outline-none focus:border-[rgb(var(--color-accent))] bg-[rgb(var(--color-background))] text-[rgb(var(--color-text))]"
-                          />
-                          <button
-                              type="button"
-                              onClick={() => {
-                                setRemoteUrl('');
-                                setMediaInputMode(null);
-                              }}
-                              className="p-1 rounded-full text-[rgb(var(--color-text-secondary))] hover:bg-[rgb(var(--color-surface-hover))] transition"
-                              title="Cancel URL input"
-                          >
-                              <X size={20} />
-                          </button>
-                      </div>
-                  </div>
-              )}
             </div>
-
-            <form onSubmit={sendMessage} className="p-3 bg-[rgb(var(--color-surface))] border-t border-[rgb(var(--color-border))] relative">
-              {isUploading && (
-                <div className="mb-3 w-full bg-[rgb(var(--color-border))] rounded-full h-2 overflow-hidden">
-                  <div 
-                    className="bg-[rgba(var(--color-accent),1)] h-full transition-all duration-300"
-                    style={{ width: `${uploadProgress}%` }}
-                  />
-                </div>
-              )}
-
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*,video/*,.pdf,.doc,.docx,.txt"
-                onChange={(e) => {
-                  setFile(e.target.files?.[0] || null);
-                  setRemoteUrl('');
-                }}
-                className="hidden"
-              />
-
-              {showMediaMenu && (
-                  <div className="absolute bottom-full left-3 mb-2 w-48 bg-[rgb(var(--color-surface))] border border-[rgb(var(--color-border))] rounded-lg shadow-xl overflow-hidden z-30">
-                      <button
-                          type="button"
-                          className="w-full text-left p-3 text-[rgb(var(--color-text))] hover:bg-[rgb(var(--color-surface-hover))] transition flex items-center gap-2"
-                          onClick={() => {
-                              setShowMediaMenu(false);
-                              fileInputRef.current?.click();
-                              setRemoteUrl('');
-                              setMediaInputMode('file');
-                          }}
-                      >
-                          <Paperclip size={18} /> Upload file
-                      </button>
-                      <button
-                          type="button"
-                          className="w-full text-left p-3 text-[rgb(var(--color-text))] hover:bg-[rgb(var(--color-surface-hover))] transition flex items-center gap-2"
-                          onClick={() => {
-                              setShowMediaMenu(false);
-                              setFile(null);
-                              setRemoteUrl('');
-                              setMediaInputMode('url');
-                          }}
-                      >
-                          <Link size={18} /> Fetch from URL
-                      </button>
-                  </div>
-              )}
-
-              <div className="flex items-center gap-1">
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setShowMediaMenu(!showMediaMenu);
-                  }}
-                  className="p-2 rounded-full text-[rgb(var(--color-text-secondary))] hover:bg-[rgb(var(--color-surface-hover))] transition"
-                  title="Attach file or link"
-                  disabled={isRecording}
-                >
-                  <Paperclip size={20} />
-                </button>
-                
-                <button
-                  type="button"
-                  onClick={toggleRecording}
-                  className={`p-2 rounded-full transition ${
-                    isRecording 
-                      ? 'text-red-500 bg-red-500/10 animate-pulse' 
-                      : 'text-[rgb(var(--color-text-secondary))] hover:bg-[rgb(var(--color-surface-hover))]'
-                  }`}
-                  title={isRecording ? "Stop recording" : "Start voice message"}
-                  disabled={isUploading}
-                >
-                  <Mic size={20} />
-                </button>
-
-                <input
-                  type="text"
-                  placeholder={isRecording ? "Recording... (press mic to stop)" : "Type a message..."}
-                  value={content}
-                  onChange={handleInputChange}
-                  onPaste={handlePaste}
-                  className="flex-1 px-4 py-2.5 border border-[rgb(var(--color-border))] rounded-full focus:outline-none focus:border-[rgb(var(--color-accent))] text-base bg-[rgb(var(--color-background))] text-[rgb(var(--color-text))]"
-                  disabled={isRecording}
-                />
-
-                <button
-                  type="submit"
-                  disabled={isUploading || isRecording || (!content.trim() && !file && !remoteUrl.trim())}
-                  className={`p-2 rounded-full transition ${isUploading || isRecording || (!content.trim() && !file && !remoteUrl.trim()) ? 'bg-[rgb(var(--color-border))] text-[rgb(var(--color-text-secondary))]' : 'bg-[rgba(var(--color-accent),1)] text-[rgb(var(--color-text-on-primary))] hover:bg-[rgba(var(--color-primary),1)]'}`}
-                >
-                  <Send size={20} />
-                </button>
-              </div>
-            </form>
           </>
         ) : (
-          <div className="flex-1 flex items-center justify-center text-[rgb(var(--color-text-secondary))] flex-col">
-            <span className="text-xl font-semibold mb-2">Welcome to Messages</span>
-            <span className="text-center px-8">
-              {showSidebar ? 'Select a chat on the left to start messaging.' : 'Tap the arrow to open the chat list.'}
-            </span>
-            <button onClick={() => setShowSidebar(true)} className="md:hidden mt-4 bg-[rgba(var(--color-accent),1)] text-[rgb(var(--color-text-on-primary))] px-4 py-2 rounded-full hover:bg-[rgba(var(--color-primary),1)] transition">
-              <ArrowLeft className="mr-2 inline" /> Back to Chats
-            </button>
+          <div className="flex-1 flex items-center justify-center bg-[rgb(var(--color-background))] flex-col gap-6 p-8">
+             <div className="w-24 h-24 rounded-full bg-[rgb(var(--color-surface))] flex items-center justify-center shadow-inner">
+                 <MessageSquare size={40} className="text-[rgb(var(--color-text-secondary))] opacity-50" />
+             </div>
+             <div className="text-center space-y-2">
+                <h2 className="text-2xl font-bold text-[rgb(var(--color-text))]">Welcome to Messages</h2>
+                <p className="text-[rgb(var(--color-text-secondary))] max-w-xs mx-auto">
+                    Select a conversation from the sidebar to start chatting or search for a new connection.
+                </p>
+             </div>
+             <button onClick={() => setShowSidebar(true)} className="md:hidden mt-4 bg-[rgb(var(--color-primary))] text-[rgb(var(--color-text-on-primary))] px-6 py-3 rounded-full font-semibold shadow-lg hover:shadow-xl transition flex items-center gap-2">
+                 <ArrowLeft size={18} /> View Chats
+             </button>
           </div>
         )}
       </div>
 
       {showSidebar && !selectedUser && (
-        <div onClick={() => setShowSidebar(false)} className="fixed inset-0 bg-black bg-opacity-50 z-30 md:hidden" />
+        <div onClick={() => setShowSidebar(false)} className="fixed inset-0 bg-black/50 backdrop-blur-sm z-30 md:hidden animate-in fade-in duration-200" />
       )}
     </div>
   );
 };
+
+// Helper for "Big Emoji" detection
+function isOnlyEmoji(str: string) {
+    const emojiRegex = /^(?:[\u2700-\u27bf]|(?:\ud83c[\udde6-\uddff]){2}|[\ud800-\udbff][\udc00-\udfff]|[\u0023-\u0039]\ufe0f?\u20e3|\u3299|\u3297|\u303d|\u3030|\u24c2|\ud83c[\udd70-\udd71]|\ud83c[\udd7e-\udd7f]|\ud83c\udd8e|\ud83c[\udd91-\udd9a]|\ud83c[\udde6-\uddff]|\ud83c[\ude01-\ude02]|\ud83c\ude1a|\ud83c\ude2f|\ud83c[\ude32-\ude3a]|\ud83c[\ude50-\ude51]|\u203c|\u2049|[\u25aa-\u25ab]|\u25b6|\u25c0|[\u25fb-\u25fe]|\u00a9|\u00ae|\u2122|\u2139|\ud83c\udc04|[\u2600-\u26FF]|\u2b05|\u2b06|\u2b07|\u2b1b|\u2b1c|\u2b50|\u2b55|\u231a|\u231b|\u2328|\u23cf|[\u23e9-\u23f3]|[\u23f8-\u23fa]|\ud83c\udccf|\u2934|\u2935|[\u2190-\u21ff])+$/;
+    return emojiRegex.test(str) && str.length < 10; // Simple heuristic
+}

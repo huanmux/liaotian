@@ -18,7 +18,7 @@ If you just want to create an account on **Liaoverse** (our official deployment)
 1. Fork this repository to your GitHub account.
 2. Connect this repository to your Vercel account.
 3. Create a Supabase database.
-4. Insert the environment variables `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` on **Vercel** according to your **Supabase** API connection system (choose App:NextJS).
+4. Insert the environment variables `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` on **Vercel** according to your **Supabase** API connection system (choose App:NextJS). Also need `VITE_TENOR_API_KEY` from [**Google Developer Console**](https://developers.google.com/tenor/guides/quickstart) for allowing sending GIFs.
 5. If all steps are correct, you should be able to see your own instance of LiaoTian ready and deployed! Have fun customizing it to your needs.
 
 ## 🎨 Customization options
@@ -63,11 +63,10 @@ If you just want to create an account on **Liaoverse** (our official deployment)
 - [x] Create and manage groups
 - [x] Custom ringtone for calling in Messages
 - [x] Special event/party mode (activated via App.tsx)
+- [x] Sending GIFs via Tenor (in Messages only)
 - [ ] Posting long-form content, e.g. blogs
 - [ ] Hashtags
 - [ ] Custom sounds, e.g. notifications, clicks, etc.
-- [ ] Gaming mode (color-changing RGB background)
-- [ ] Sending GIFs via Tenor/Giphy
 - [ ] Privacy settings for posts + "emergency profile shutdown" option to temporarily make only posts have "only me" level privacy.
 - [ ] Add Discord-like activity detection for desktop client by identifying window titles or otherwise, for showing what game users are currently playing, etc.
 - [ ] Add more sidebars for navigation to further secondary sections (Discover, Groups, Users, Trends).
@@ -79,7 +78,6 @@ If you just want to create an account on **Liaoverse** (our official deployment)
 - [ ] Cookie “__cf_bm” has been rejected for invalid domain. Browser console error logs sometimes.
 - [ ] audio and video calling may require a turn server
 - [ ] Current App.tsx URL param handling messes up non-conventional usernames (previous versions allowed them)
-- [ ] Messages width issues for message entries (especially with embeds)
 - [ ] Gazebo VC video and screen sharing issues (local works fine)
 - [ ] Status images not centered properly, and sometimes trimmed in half
 - [ ] Groups need better UI/UX for modification, post flairs in feed, etc.

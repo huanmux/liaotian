@@ -192,6 +192,8 @@ CREATE TABLE public.messages (
   media_type text DEFAULT 'image'::text,
   reply_to_id uuid,
   group_id uuid,
+  is_edited boolean DEFAULT false,
+  is_deleted boolean DEFAULT false,
   CONSTRAINT messages_pkey PRIMARY KEY (id),
   CONSTRAINT messages_sender_id_fkey FOREIGN KEY (sender_id) REFERENCES public.profiles(id),
   CONSTRAINT messages_recipient_id_fkey FOREIGN KEY (recipient_id) REFERENCES public.profiles(id),

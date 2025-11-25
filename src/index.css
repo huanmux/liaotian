@@ -73,11 +73,11 @@ body {
 
 /* Cooper Black Theme: Neon Yellow/Lime Analogous Dark Theme */
 .theme-cooper-black {
-  --color-primary: 255, 255, 0;    /* Pure Yellow */
-  --color-accent: 230, 255, 0;    /* Lighter Neon Yellow */
+  --color-primary: 232, 183, 7;
+  --color-accent: 255, 234, 0;
   
   --color-background: 20, 20, 20;  /* Very Dark Gray/Black */
-  --color-text: 255, 255, 255;     /* White */
+  --color-text: 250, 250, 239;
   --color-text-on-primary: 0, 0, 0; /* Black for text over primary color */
   --color-surface: 35, 35, 35;      /* Card backgrounds - slightly lighter dark */
   --color-border: 60, 60, 60;      /* Borders - dark gray */

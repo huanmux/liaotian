@@ -47,6 +47,8 @@ export type Message = {
   media_type: 'image' | 'video' | 'document' | 'audio';
   read: boolean;
   created_at: string;
+  is_edited?: boolean;
+  is_deleted?: boolean;
   sender?: Profile;
   recipient?: Profile;
   reactions?: MessageReaction[];
