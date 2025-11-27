@@ -441,7 +441,7 @@ export const Profile = ({ userId, initialPostId, onMessage, onSettings }: { user
     if (!targetUserId) return;
     const { data } = await supabase
       .from('posts')
-      .select('*, profiles(*)')
+      .select('*, profiles(*), original_post:posts!repost_of(*, profiles(*))')
       .eq('user_id', targetUserId)
       .order('created_at', { ascending: false });
     const loadedPosts = data || [];
@@ -480,7 +480,8 @@ export const Profile = ({ userId, initialPostId, onMessage, onSettings }: { user
     const postIds = likeData.map(l => l.entity_id);
     const { data: postData } = await supabase
       .from('posts')
-      .select('*, profiles(*)')
+      // Added: original_post:posts!repost_of(*, profiles(*))
+      .select('*, profiles(*), original_post:posts!repost_of(*, profiles(*))')
       .in('id', postIds)
       .order('created_at', { ascending: false });
       
@@ -542,7 +543,7 @@ export const Profile = ({ userId, initialPostId, onMessage, onSettings }: { user
 
       const channel = supabase.channel(`profile-${targetUserId}`).on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'posts' }, async (payload) => {
         if (payload.new.user_id !== targetUserId) return;
-        const { data } = await supabase.from('posts').select('*, profiles(*)').eq('id', payload.new.id).single();
+        const { data } = await supabase.from('posts').select('*, profiles(*), original_post:posts!repost_of(*, profiles(*))').eq('id', payload.new.id).single();
         if (data) {
           const postIds = [data.id];
           const { likeCounts, commentCounts } = await getPostCounts(postIds);
@@ -560,7 +561,7 @@ export const Profile = ({ userId, initialPostId, onMessage, onSettings }: { user
       }).on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'likes', filter: 'entity_type=eq.post' }, async (payload) => {
         if (payload.new.user_id === targetUserId) {
           // Add to likedPosts
-          const { data: postData } = await supabase.from('posts').select('*, profiles(*)').eq('id', payload.new.entity_id).single();
+          const { data: postData } = await supabase.from('posts').select('*, profiles(*), original_post:posts!repost_of(*, profiles(*))').eq('id', payload.new.entity_id).single();
           if (postData) {
             const postIds = [postData.id];
             const { likeCounts, commentCounts } = await getPostCounts(postIds);
@@ -605,7 +606,7 @@ export const Profile = ({ userId, initialPostId, onMessage, onSettings }: { user
           const fetchPost = async () => {
               const { data } = await supabase
                   .from('posts')
-                  .select('*, profiles(*)')
+                  .select('*, profiles(*), original_post:posts!repost_of(*, profiles(*))')
                   .eq('id', initialPostId)
                   .maybeSingle(); // Use maybeSingle for safety
               
