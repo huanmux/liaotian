@@ -10,11 +10,11 @@ import { Settings } from './components/Settings';
 import { CustomPage } from './components/CustomPage';
 import { Stats } from './components/Stats';
 import { Status, StatusArchive } from './components/Status';
-import { Sidebar } from './components/Sidebar';
+import { RightSidebar } from './components/Sidebar';
 import { Notifications } from './components/Notifications'; 
 import { Groups } from './components/Groups';
 import { Forums } from './components/Forums';
-import { Home, MessageSquare, User, LogOut, Search as SearchIcon, Bell } from 'lucide-react';
+import { Home, MessageSquare, User, LogOut, Search as SearchIcon, Bell, Menu } from 'lucide-react';
 import { supabase } from './lib/supabase';
 import { BrowserRouter, useLocation, useNavigate } from 'react-router-dom';
 import { Analytics } from '@vercel/analytics/react';
@@ -413,11 +413,12 @@ const handleMessageUser = (targetProfile: any) => {
   return (
     <div className="min-h-screen bg-[rgb(var(--color-background))]">
       {/* 4a. RENDER SIDEBAR */}
-      <Sidebar 
+      <RightSidebar 
         show={showSidebar} 
         onClose={() => setShowSidebar(false)} 
         setView={setView} 
-        view={view} 
+        view={view}
+        onSignOut={signOut} 
       />
 
       <nav className="bg-[rgb(var(--color-surface))] border-b border-[rgb(var(--color-border))] sticky top-0 z-50 shadow-sm">
@@ -449,8 +450,8 @@ const handleMessageUser = (targetProfile: any) => {
             <button onClick={() => { if (!profile?.username) return; navigate(`/?user=${profile.username}`); setSelectedProfileId(undefined); setView('profile'); }} className={`p-3 rounded-full transition ${view === 'profile' && !selectedProfileId ? 'bg-[rgba(var(--color-primary),0.1)] text-[rgb(var(--color-primary))]' : 'hover:bg-[rgb(var(--color-surface-hover))] text-[rgb(var(--color-text-secondary))]'}`}>
               <User size={20} />
             </button>
-            <button onClick={signOut} className="p-3 rounded-full hover:bg-[rgba(239,68,68,0.1)] text-red-600 transition">
-              <LogOut size={20} />
+			<button onClick={() => setShowSidebar(true)} className="p-3 rounded-full hover:bg-[rgb(var(--color-surface-hover))] text-[rgb(var(--color-text-secondary))] transition">
+              <Menu size={20} />
             </button>
           </div>
         </div>
