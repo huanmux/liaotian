@@ -426,6 +426,20 @@ export const PostItem: React.FC<PostItemProps> = ({
               <button onClick={() => onNavigateToProfile(post.user_id)} className="font-bold hover:underline text-[rgb(var(--color-text))]">{post.profiles?.display_name}</button>
               {post.profiles?.verified && <BadgeCheck size={16} className="text-[rgb(var(--color-accent))]" />}
               <span className="text-[rgb(var(--color-text-secondary))] text-sm">@{post.profiles?.username}</span>
+              {/* --- CUSTOM BADGE --- */}
+              {(post.profiles as any)?.badge_url && (
+                  <div className="group relative inline-flex items-center justify-center h-4 px-1.5 min-w-[18px] rounded overflow-visible align-middle select-none ml-0.5">
+                    <div className="absolute inset-0 bg-cover bg-center rounded-sm" style={{ backgroundImage: `url(${(post.profiles as any).badge_url})` }} />
+                    {(post.profiles as any)?.badge_text && (
+                       <span className="relative z-10 text-[8px] font-black text-white uppercase tracking-wider drop-shadow-md shadow-black">{(post.profiles as any).badge_text}</span>
+                    )}
+                    {(post.profiles as any)?.badge_tooltip && (
+                      <div className="absolute bottom-full mb-1 left-1/2 -translate-x-1/2 w-max max-w-[120px] px-2 py-1 bg-black/90 backdrop-blur text-white text-[10px] rounded opacity-0 group-hover:opacity-100 transition pointer-events-none z-50 text-center shadow-xl">
+                        {(post.profiles as any).badge_tooltip}
+                      </div>
+                    )}
+                  </div>
+              )}
               <span className="text-[rgb(var(--color-text-secondary))] text-sm">· {new Date(post.created_at).toLocaleDateString()} at {formatTime(post.created_at)}</span>
             </div>
 
