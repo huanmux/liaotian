@@ -15,9 +15,9 @@ Also to get started on developing your own version of LiaoTian, it's much simple
 If you just want to create an account on **Liaoverse** (our official deployment) then [sign up here](https://liaoverse.xyz/).
 
 ## 🌐 Host your own LiaoTian
-1. Fork this repository to your GitHub account.
-2. Connect this repository to your Vercel account.
-3. Create a Supabase database.
+1. Fork this repository to your [GitHub](https://github.com/) account.
+2. Connect this repository to your [Vercel](https://vercel.com/) account.
+3. Create a [Supabase](https://supabase.com) database. Initialize with the SQL commands stored in `supabase/migrations/database_structure.sql`.
 4. Insert the environment variables `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` on **Vercel** according to your **Supabase** API connection system (choose App:NextJS). Also need `VITE_TENOR_API_KEY` from [**Google Developer Console**](https://developers.google.com/tenor/guides/quickstart) for allowing sending GIFs.
 5. If all steps are correct, you should be able to see your own instance of LiaoTian ready and deployed! Have fun customizing it to your needs.
 
@@ -61,7 +61,7 @@ If you just want to create an account on **Liaoverse** (our official deployment)
 - [x] Gazebo joining Welcome page
 - [x] Embed links (in Feed, Messages, Gazebos) and YouTube videos (in Feed)
 - [x] Create and manage groups
-- [x] Custom ringtone for calling in Messages
+- [x] Custom ringtone & calltone for Calls in Messages
 - [x] Special event/party mode (activated via App.tsx)
 - [x] Sending GIFs via Tenor (in Messages only)
 - [x] Reposting others' posts
