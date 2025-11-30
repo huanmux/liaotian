@@ -1427,10 +1427,11 @@ export const Gazebos = ({ initialInviteCode, onInviteHandled, initialGazeboId }:
                           {viewingProfile.display_name}
                           {isUserOnline(viewingProfile.last_seen) && <div className="w-3 h-3 bg-green-500 rounded-full ml-1" title="Online" />}
                       </div>
-                      <div className="text-[rgb(var(--color-text-secondary))] text-sm">@{viewingProfile.username}</div>
-                     {/* --- CUSTOM BADGE --- */}
+                      <div className="flex items-center gap-2 text-[rgb(var(--color-text-secondary))] text-sm">
+                          <span>@{viewingProfile.username}</span>
+                          {/* --- CUSTOM BADGE --- */}
                           {(viewingProfile as any).badge_url && (
-                            <div className="group relative ml-1 inline-flex items-center justify-center h-5 px-2 min-w-[20px] rounded overflow-visible align-middle select-none">
+                            <div className="group relative inline-flex items-center justify-center h-5 px-2 min-w-[20px] rounded overflow-visible align-middle select-none">
                                 <div className="absolute inset-0 bg-cover bg-center rounded" style={{ backgroundImage: `url(${(viewingProfile as any).badge_url})` }} />
                                 {(viewingProfile as any).badge_text && (
                                 <span className="relative z-10 text-[9px] font-black text-white uppercase tracking-widest drop-shadow-md shadow-black">{(viewingProfile as any).badge_text}</span>
@@ -1442,7 +1443,9 @@ export const Gazebos = ({ initialInviteCode, onInviteHandled, initialGazeboId }:
                                 )}
                             </div>
                           )}
-                      {/* NEW: Last Seen Line */}
+                      </div>
+
+                      {/* Last Seen Line */}
                       <div className="text-xs text-[rgb(var(--color-text-secondary))] mb-4 mt-0.5">
                           {isUserOnline(viewingProfile.last_seen) ? 'Online' : formatLastSeen(viewingProfile.last_seen)}
                       </div>
