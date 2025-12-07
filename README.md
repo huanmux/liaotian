@@ -12,7 +12,7 @@ Unlike Mastodon and other open-source and decentralized or fediverse alternative
 Also to get started on developing your own version of LiaoTian, it's much simpler than most other "templates" out there, since it uses only a small number of files for its actual codebase (as of now).
 
 ## 👤 Use LiaoTian itself
-If you just want to create an account on **Liaoverse** (our official deployment) then [sign up here](https://liaoverse.xyz/).
+If you just want to create an account on **Liaoverse** (our official deployment) then [sign up here](https://liaoverse.vercel.app/).
 
 ## 🌐 Host your own LiaoTian
 1. Fork this repository to your [GitHub](https://github.com/) account.
@@ -31,7 +31,7 @@ If you just want to create an account on **Liaoverse** (our official deployment)
 - [x] Post on the feed and customize profiles like X/Twitter
 - [x] Messaging like Telegram/WhatsApp
 - [x] User following/followers
-- [x] User profiles via url parameters (e.g. [/?liaotian](https://liaoverse.xyz/?liaotian))
+- [x] User profiles via url parameters (e.g. [/?liaotian](https://liaoverse.vercel.app/?user=liaotian))
 - [x] Animated GIFs eligible for profile customization
 - [x] Upload files (max 10 MB, or as configured)
 - [x] Upload images, videos, documents (txt, pdf, doc/x)
@@ -46,7 +46,7 @@ If you just want to create an account on **Liaoverse** (our official deployment)
 - [x] Comments and replies on posts (in a comment modal)
 - [x] Multiple tabs on Profile for posts, media, and likes. Media tab is in a classic *Instagram*-like grid.
 - [x] Multiple tabs on Feed for posts and shots ("shorts/"reels") in *TikTok*-like swipe navigation UI.
-- [x] Platform data statistics page (accessible on [/stats](https://liaoverse.xyz/stats))
+- [x] Platform data statistics page (accessible on [/stats](https://liaoverse.vercel.app/stats))
 - [x] Voice messages
 - [x] Web visitor analytics via Vercel
 - [x] Posting on Status (similar to FB/IG story) + view detecting and replying via Messages logic
