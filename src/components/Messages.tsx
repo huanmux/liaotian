@@ -1969,7 +1969,6 @@ export const Messages = ({
                  <ArrowLeft size={18} /> View Chats
              </motion.button>
           </motion.div>
-        )
       </motion.div>
 
       <AnimatePresence>
