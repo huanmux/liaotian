@@ -1,5 +1,3 @@
-"use client"
-
 import type React from "react"
 
 // src/components/Messages.tsx
@@ -2223,100 +2221,6 @@ export const Messages = ({
         )}
       </AnimatePresence>
 
-      <AnimatePresence>
-        {showGifPicker && (
-          <motion.div 
-            ref={gifPickerRef}
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 10 }}
-            transition={{ duration: 0.2 }}
-            className="absolute bottom-24 left-4 right-4 md:left-auto md:right-4 md:w-80 bg-[rgb(var(--color-surface))] rounded-2xl shadow-2xl border border-[rgb(var(--color-border))] overflow-hidden z-40"
-          >
-              <div className="p-3 border-b border-[rgb(var(--color-border))] flex gap-2 items-center">
-                  <div className="relative flex-1">
-                      <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[rgb(var(--color-text-secondary))]" />
-                      <input 
-                          type="text" 
-                          placeholder="Search GIFs..." 
-                          value={gifQuery}
-                          onChange={e => setGifQuery(e.target.value)}
-                          className="w-full pl-9 pr-3 py-2 text-sm bg-[rgb(var(--color-background))] text-[rgb(var(--color-text))] rounded-xl border border-[rgb(var(--color-border))] focus:border-[rgb(var(--color-accent))] focus:outline-none"
-                          autoFocus
-                      />
-                  </div>
-                  <button onClick={() => setShowGifPicker(false)} className="p-2 hover:bg-[rgb(var(--color-surface-hover))] rounded-full text-[rgb(var(--color-text-secondary))]">
-                      <X size={20} />
-                  </button>
-              </div>
-              
-              <div className="flex-1 overflow-y-auto p-2 custom-scrollbar">
-                  <div className="columns-2 md:columns-3 gap-2 space-y-2">
-                      {gifs.map(gif => (
-                          <button 
-                              key={gif.id} 
-                              onClick={() => sendGif(gif.media_formats.gif.url)} 
-                              className="w-full block rounded-lg overflow-hidden hover:opacity-90 hover:ring-2 hover:ring-[rgb(var(--color-accent))] transition-all break-inside-avoid"
-                          >
-                              <img 
-                                  src={gif.media_formats.tinygif.url || "/placeholder.svg"} 
-                                  alt="GIF" 
-                                  className="w-full h-auto object-cover" 
-                                  loading="lazy"
-                              />
-                          </button>
-                      ))}
-                  </div>
-                  {gifs.length === 0 && (
-                      <div className="flex items-center justify-center h-full text-[rgb(var(--color-text-secondary))] text-sm">
-                          No GIFs found
-                      </div>
-                  )}
-              </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      <AnimatePresence>
-        {showMediaMenu && (
-          <motion.div 
-            initial={{ opacity: 0, y: 10, scale: 0.95 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 10, scale: 0.95 }}
-            transition={{ type: 'spring', stiffness: 400, damping: 30 }}
-            className="absolute bottom-full left-0 mb-2 w-56 bg-[rgb(var(--color-surface))] border border-[rgb(var(--color-border))] rounded-2xl shadow-xl overflow-hidden z-30"
-          >
-              <motion.div
-                initial={{ opacity: 0, x: -10 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.2, delay: 0 }}
-              >
-                <button type="button" className="w-full text-left p-3 text-sm text-[rgb(var(--color-text))] hover:bg-[rgb(var(--color-surface-hover))] flex items-center gap-3" onClick={() => { setShowMediaMenu(false); fileInputRef.current?.click(); setRemoteUrl(''); setMediaInputMode('file'); }}>
-                    <Folder size={18} className="text-[rgb(var(--color-accent))]" /> Upload File
-                </button>
-              </motion.div>
-              <motion.div
-                initial={{ opacity: 0, x: -10 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.2, delay: 0.05 }}
-              >
-                <button type="button" className="w-full text-left p-3 text-sm text-[rgb(var(--color-text))] hover:bg-[rgb(var(--color-surface-hover))] flex items-center gap-3" onClick={() => { setShowMediaMenu(false); setFile(null); setRemoteUrl(''); setMediaInputMode('url'); }}>
-                    <Link size={18} className="text-[rgb(var(--color-accent))]" /> Paste Link
-                </button>
-              </motion.div>
-              <div className="h-px bg-[rgb(var(--color-border))]" />
-              <motion.div
-                initial={{ opacity: 0, x: -10 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.2, delay: 0.1 }}
-              >
-                <button type="button" className="w-full text-left p-3 text-sm text-[rgb(var(--color-text))] hover:bg-[rgb(var(--color-surface-hover))] flex items-center gap-3" onClick={() => { setShowMediaMenu(false); setShowGifPicker(true); }}>
-                    <Gift size={18} className="text-pink-500" /> Insert GIF
-                </button>
-              </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
     </div>
   );
 }
