@@ -11,7 +11,7 @@ const containerVariants = {
   visible: { opacity: 1, transition: { staggerChildren: 0.1 } }
 };
 
-export default function Feed() {
+export const Feed = () => {
   const [posts, setPosts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const { user } = useAuth();
