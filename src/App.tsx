@@ -1,6 +1,7 @@
 // src/App.tsx
 import { useState, useEffect } from 'react';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Auth } from './components/Auth';
 import { Feed } from './components/Feed';
 import { Messages } from './components/Messages';
@@ -16,7 +17,7 @@ import { Groups } from './components/Groups';
 import { Forums } from './components/Forums';
 import { Home, MessageSquare, User, LogOut, Search as SearchIcon, Bell, Menu } from 'lucide-react';
 import { supabase } from './lib/supabase';
-import { BrowserRouter, useLocation, useNavigate } from 'react-router-dom';
+import { BrowserRouter, useLocation, useNavigate, Link } from 'react-router-dom';
 import { Analytics } from '@vercel/analytics/react';
 
 type ViewType = 'feed' | 'messages' | 'profile' | 'settings' | 'page' | 'stats' | 'archive' | 'groups' | 'forums';
@@ -372,8 +373,14 @@ const Main = () => {
   }, [user]);
 
   if (loading) {
+    // Define the SVG path length animation (you'd need to ensure 'logo-fill-animated'
+    // class in your CSS is removed or overridden, but for simplicity, Framer Motion handles it)
+    const transition = { duration: 2, ease: "easeInOut" };
     return (
-        <div
+        <motion.div // motion.div for fade in
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.5 }}
             className="min-h-screen bg-[rgb(var(--color-background))] flex flex-col items-center justify-center text-2xl font-bold text-[rgb(var(--color-text))]"
             style={{
                 background: `linear-gradient(to bottom right, rgba(var(--color-surface),0.05), rgba(var(--color-primary),0.05))`,
@@ -384,12 +391,27 @@ const Main = () => {
                     <defs>
                         <clipPath id="logo-clip"><rect id="clip-rect" x="0" y="0" width="100%" height="100%" /></clipPath>
                     </defs>
+                    {/* Path for background */}
                     <path d={SVG_PATH} fill="none" stroke="rgb(var(--color-primary))" strokeWidth="10" strokeOpacity="0.1" />
-                    <path d={SVG_PATH} fill="rgb(var(--color-primary))" clipPath="url(#logo-clip)" className="logo-fill-animated" />
+                    {/* Animated Path */}
+                    <motion.path 
+                       d={SVG_PATH} 
+                       fill="rgb(var(--color-primary))" 
+                       clipPath="url(#logo-clip)" 
+                       initial={{ pathLength: 0 }}
+                       animate={{ pathLength: 1 }}
+                       transition={transition}
+                    />
                 </svg>
             </div>
-            Loading...
-        </div>
+            <motion.div
+               initial={{ y: 20, opacity: 0 }}
+               animate={{ y: 0, opacity: 1 }}
+               transition={{ delay: 1.5, duration: 0.5 }}
+            >
+               Loading...
+            </motion.div>
+        </motion.div>
     );
   }
 
@@ -444,7 +466,38 @@ const handleMessageUser = (targetProfile: any) => {
     } catch (error) { console.warn("Could not mark notifications as read."); }
   };
 
+  // --- MOBILE NAV CONFIG ---
+  const MOBILE_NAV_ITEMS = [
+    { 
+      icon: Home, 
+      label: 'Home', 
+      isActive: view === 'feed',
+      action: () => { setView('feed'); setSelectedProfileId(undefined); setSelectedPostId(undefined); navigate('/'); }
+    },
+    { 
+      icon: MessageSquare, 
+      label: 'Messages', 
+      isActive: view === 'messages',
+      badge: unreadMessages,
+      action: () => { setView('messages'); setSelectedProfileId(undefined); setSelectedPostId(undefined); navigate('/message'); }
+    },
+    { 
+      icon: Bell, 
+      label: 'Notifications', 
+      isActive: showNotifications, // Visual indicator
+      badge: unreadNotifications,
+      action: handleNotificationsClick 
+    },
+    { 
+      icon: User, 
+      label: 'Profile', 
+      isActive: view === 'profile' && (!selectedProfileId || selectedProfileId === user.id),
+      action: () => { if (!profile?.username) return; navigate(`/?user=${profile.username}`); setSelectedProfileId(undefined); setView('profile'); }
+    },
+  ];
+
   return (
+	
     <div className="min-h-screen bg-[rgb(var(--color-background))]">
       {/* 4a. RENDER SIDEBARS */}
 	<LeftSidebar 
@@ -471,31 +524,61 @@ const handleMessageUser = (targetProfile: any) => {
             <path d={SVG_PATH} fill="rgb(var(--color-primary))" />
           </svg>
           <div className="flex items-center gap-1">
-            <button onClick={() => setShowSearch(true)} className="p-3 rounded-full hover:bg-[rgb(var(--color-surface-hover))] transition">
+            <motion.button // motion.button
+              onClick={() => setShowSearch(true)} 
+              className="p-3 rounded-full hover:bg-[rgb(var(--color-surface-hover))] transition"
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.9 }}
+            >
               <SearchIcon size={20} className="text-[rgb(var(--color-text-secondary))]" />
-            </button>
-            <button onClick={() => { setView('feed'); setSelectedProfileId(undefined); setSelectedPostId(undefined); navigate('/'); }} className={`p-3 rounded-full transition ${view === 'feed' ? 'bg-[rgba(var(--color-primary),0.1)] text-[rgb(var(--color-primary))]' : 'hover:bg-[rgb(var(--color-surface-hover))] text-[rgb(var(--color-text-secondary))]'}`}>
+            </motion.button>
+            <motion.button // motion.button
+              onClick={() => { setView('feed'); setSelectedProfileId(undefined); setSelectedPostId(undefined); navigate('/'); }} 
+              className={`hidden md:flex p-3 rounded-full transition ${view === 'feed' ? 'bg-[rgba(var(--color-primary),0.1)] text-[rgb(var(--color-primary))]' : 'hover:bg-[rgb(var(--color-surface-hover))] text-[rgb(var(--color-text-secondary))]'}`}
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.9 }}
+            >
               <Home size={20} />
-            </button>
-            <button onClick={() => { setView('messages'); setSelectedProfileId(undefined); setSelectedPostId(undefined); navigate('/message'); }} className={`relative p-3 rounded-full transition ${view === 'messages' ? 'bg-[rgba(var(--color-primary),0.1)] text-[rgb(var(--color-primary))]' : 'hover:bg-[rgb(var(--color-surface-hover))] text-[rgb(var(--color-text-secondary))]'}`}>
+            </motion.button>
+            <motion.button // motion.button
+              onClick={() => { setView('messages'); setSelectedProfileId(undefined); setSelectedPostId(undefined); navigate('/message'); }} 
+              className={`hidden md:flex relative p-3 rounded-full transition ${view === 'messages' ? 'bg-[rgba(var(--color-primary),0.1)] text-[rgb(var(--color-primary))]' : 'hover:bg-[rgb(var(--color-surface-hover))] text-[rgb(var(--color-text-secondary))]'}`}
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.9 }}
+            >
               <MessageSquare size={20} />
-              {unreadMessages > 0 && <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full animate-pulse" />}
-            </button>
-			      <button onClick={handleNotificationsClick} className="relative p-3 rounded-full hover:bg-[rgb(var(--color-surface-hover))] transition">
+              {unreadMessages > 0 && <motion.span initial={{ scale: 0 }} animate={{ scale: 1 }} className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full animate-pulse" />}
+            </motion.button>
+			      <motion.button // motion.button
+              onClick={handleNotificationsClick} 
+              className="hidden md:flex relative p-3 rounded-full hover:bg-[rgb(var(--color-surface-hover))] transition"
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.9 }}
+            >
               <Bell size={20} className="text-[rgb(var(--color-text-secondary))]" />
-              {unreadNotifications > 0 && <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full animate-pulse" />}
-            </button>
-            <button onClick={() => { if (!profile?.username) return; navigate(`/?user=${profile.username}`); setSelectedProfileId(undefined); setView('profile'); }} className={`p-3 rounded-full transition ${view === 'profile' && !selectedProfileId ? 'bg-[rgba(var(--color-primary),0.1)] text-[rgb(var(--color-primary))]' : 'hover:bg-[rgb(var(--color-surface-hover))] text-[rgb(var(--color-text-secondary))]'}`}>
+              {unreadNotifications > 0 && <motion.span initial={{ scale: 0 }} animate={{ scale: 1 }} className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full animate-pulse" />}
+            </motion.button>
+            <motion.button // motion.button
+              onClick={() => { if (!profile?.username) return; navigate(`/?user=${profile.username}`); setSelectedProfileId(undefined); setView('profile'); }} 
+              className={`hidden md:flex p-3 rounded-full transition ${view === 'profile' && !selectedProfileId ? 'bg-[rgba(var(--color-primary),0.1)] text-[rgb(var(--color-primary))]' : 'hover:bg-[rgb(var(--color-surface-hover))] text-[rgb(var(--color-text-secondary))]'}`}
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.9 }}
+            >
               <User size={20} />
-            </button>
-			<button onClick={() => setShowSidebar(true)} className="p-3 rounded-full hover:bg-[rgb(var(--color-surface-hover))] text-[rgb(var(--color-text-secondary))] transition">
+            </motion.button>
+			<motion.button // motion.button
+              onClick={() => setShowSidebar(true)} 
+              className="p-3 rounded-full hover:bg-[rgb(var(--color-surface-hover))] text-[rgb(var(--color-text-secondary))] transition"
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.9 }}
+            >
               <Menu size={20} />
-            </button>
+            </motion.button>
           </div>
         </div>
       </nav>
 
-      <main className="h-[90vh] overflow-auto">
+      <main className="h-[90vh] overflow-auto pb-24 md:pb-0">
         {view === 'feed' && <Feed />}
         {view === 'messages' && (
 		    <Messages 
@@ -522,8 +605,41 @@ const handleMessageUser = (targetProfile: any) => {
 		  {view === 'forums' && <Forums />}
 		  {view === 'archive' && <StatusArchive />}
       </main>
+
+      {/* NEW MOBILE NAV BAR */}
+      <div className="fixed bottom-0 left-0 right-0 z-50 bg-[rgba(var(--color-surface),0.9)] backdrop-blur-md border-t border-[rgba(var(--color-border),0.5)] md:hidden">
+        <div className="flex justify-around items-center h-20 px-2">
+          {MOBILE_NAV_ITEMS.map((item, index) => {
+            return (
+              <div 
+                key={index} 
+                onClick={item.action} 
+                className="flex flex-col items-center justify-center w-full h-full relative group cursor-pointer"
+              >
+                {item.isActive && (
+                  <motion.div
+                    layoutId="mobile-nav-pill"
+                    className="absolute top-2 w-16 h-8 bg-[rgba(var(--color-primary),0.2)] rounded-full"
+                    transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                  />
+                )}
+                <div className={`relative p-1 rounded-full transition-colors ${item.isActive ? 'text-[rgb(var(--color-text))]' : 'text-[rgb(var(--color-text-secondary))]'}`}>
+                  <item.icon size={24} strokeWidth={item.isActive ? 2.5 : 2} />
+                  {!!item.badge && item.badge > 0 && (
+                     <motion.span initial={{ scale: 0 }} animate={{ scale: 1 }} className="absolute -top-0 -right-0 w-3 h-3 bg-red-500 rounded-full animate-pulse border-2 border-[rgb(var(--color-surface))]" />
+                  )}
+                </div>
+                <span className={`text-xs mt-1 font-medium ${item.isActive ? 'text-[rgb(var(--color-text))]' : 'text-[rgb(var(--color-text-secondary))]'}`}>
+                  {item.label}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
       {view !== 'messages' && (
-        <footer className="text-center text-[rgb(var(--color-text-secondary))] text-xs py-4 border-t border-[rgb(var(--color-border))] bg-[rgb(var(--color-surface))]">
+        <footer className="text-center text-[rgb(var(--color-text-secondary))] text-xs py-4 border-t border-[rgb(var(--color-border))] bg-[rgb(var(--color-surface))] hidden md:block">
           © Mux {new Date().getFullYear()}
         </footer>
        )}

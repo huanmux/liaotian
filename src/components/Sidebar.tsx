@@ -37,7 +37,7 @@ export const LeftSidebar: React.FC<SidebarProps> = ({ show, onClose }) => {
           <div className="flex items-center gap-2 mt-1">
             <span className="text-sm font-semibold text-[rgb(var(--color-text))]">running LiaoTian</span>
           </div>
-          <p className="text-xs text-[rgb(var(--color-text-secondary))] mt-1 font-mono">v1.1.0A</p>
+          <p className="text-xs text-[rgb(var(--color-text-secondary))] mt-1 font-mono">v1.1.1</p>
         </div>
 
         <div className="h-px bg-[rgb(var(--color-border))] mx-6 mb-4"></div>
