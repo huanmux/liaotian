@@ -583,7 +583,7 @@ const StatusCreator: React.FC<{ onClose: () => void }> = ({ onClose }) => {
       <div className="relative w-full h-full max-w-lg max-h-screen bg-black rounded-lg overflow-hidden flex flex-col">
         
         {/* Header Bar */}
-        <div className="absolute top-0 left-0 w-full p-4 -z-1 flex justify-between items-center bg-gradient-to-b from-black/50 to-transparent">
+        <div className="absolute top-0 left-0 w-full p-4 z-20 flex justify-between items-center bg-gradient-to-b from-black/50 to-transparent">
           <button 
             onClick={hasMedia ? reset : onClose} 
             className="p-2 bg-black/50 rounded-full text-white backdrop-blur-md"
@@ -700,7 +700,7 @@ const StatusCreator: React.FC<{ onClose: () => void }> = ({ onClose }) => {
 
         {/* Footer Controls (Only show if no media selected) */}
         {!hasMedia && (
-            <div className="absolute bottom-0 left-0 w-full -z-1 flex flex-col items-center bg-gradient-to-t from-black/80 via-black/40 to-transparent pb-8 pt-12">
+            <div className="absolute bottom-0 left-0 w-full z-20 flex flex-col items-center bg-gradient-to-t from-black/80 via-black/40 to-transparent pb-8 pt-12">
                 
                 {/* Shutter Button Row - SHIFTED HIGHER */}
                 <div className="flex items-center justify-center w-full mb-8 relative px-6">
@@ -1170,7 +1170,7 @@ const StatusViewer: React.FC<{
       onPointerUp={handlePointerUp}
       onPointerLeave={handlePointerUp}
     >
-      <div className="absolute inset-0 -z-1" onClick={handleClickNavigation} />
+      <div className="absolute inset-0 z-20" onClick={handleClickNavigation} />
       
       {/* Top Bar */}
       <div className="absolute top-0 left-0 w-full p-3 z-30">
