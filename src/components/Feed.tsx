@@ -510,8 +510,21 @@ export const Feed = () => {
         {isLoadingMorePosts && (
           <div className="flex justify-center p-4">
             <div className="logo-loading-container w-6 h-6 relative"><svg xmlns="http://www.w3.org/2000/svg" viewBox={SVG_VIEWBOX} className="logo-svg"><path d={SVG_PATH} fill="none" stroke="rgb(var(--color-primary))" strokeWidth="10" strokeOpacity="0.1" /><path d={SVG_PATH} fill="rgb(var(--color-primary))" className="logo-fill-animated" /></svg></div>
-          </div>
+         </div>
         )}
+        
+        {/* NEW: Manual Load More Button */}
+        {!isLoadingMorePosts && hasMorePosts && posts.length > 0 && (
+            <div className="flex justify-center py-6 pb-20 md:pb-6">
+                <button 
+                    onClick={loadMorePosts}
+                    className="px-6 py-2 rounded-full bg-[rgb(var(--color-surface))] border border-[rgb(var(--color-border))] text-[rgb(var(--color-text))] font-medium hover:bg-[rgb(var(--color-surface-hover))] transition shadow-sm text-sm"
+                >
+                    Load More Posts
+                </button>
+            </div>
+        )}
+
         {!isLoadingMorePosts && !hasMorePosts && posts.length > 0 && <div className="text-center py-8 text-sm text-[rgb(var(--color-text-secondary))]">You've reached the end of the feed.</div>}
         </motion.div>
         )}

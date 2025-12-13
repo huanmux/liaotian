@@ -482,13 +482,6 @@ const handleMessageUser = (targetProfile: any) => {
       action: () => { setView('messages'); setSelectedProfileId(undefined); setSelectedPostId(undefined); navigate('/message'); }
     },
     { 
-      icon: Bell, 
-      label: 'Notifications', 
-      isActive: showNotifications, // Visual indicator
-      badge: unreadNotifications,
-      action: handleNotificationsClick 
-    },
-    { 
       icon: User, 
       label: 'Profile', 
       isActive: view === 'profile' && (!selectedProfileId || selectedProfileId === user.id),
@@ -531,6 +524,15 @@ const handleMessageUser = (targetProfile: any) => {
               whileTap={{ scale: 0.9 }}
             >
               <SearchIcon size={20} className="text-[rgb(var(--color-text-secondary))]" />
+            </motion.button>
+            <motion.button // motion.button
+              onClick={handleNotificationsClick}
+              className="p-3 rounded-full hover:bg-[rgb(var(--color-surface-hover))] transition md:hidden relative"
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.9 }}
+            >
+              <Bell size={20} className="text-[rgb(var(--color-text-secondary))]" />
+              {unreadNotifications > 0 && <motion.span initial={{ scale: 0 }} animate={{ scale: 1 }} className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full animate-pulse" />}
             </motion.button>
             <motion.button // motion.button
               onClick={() => { setView('feed'); setSelectedProfileId(undefined); setSelectedPostId(undefined); navigate('/'); }} 

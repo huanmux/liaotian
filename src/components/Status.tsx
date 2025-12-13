@@ -172,43 +172,83 @@ export const StatusTray: React.FC = () => {
 
   if (!user) return null;
 
-  // UPDATED: Ring rendering logic to include upload progress
-  const renderRing = (user: ProfileWithStatus) => {
-    const hasStatus = user.statuses.length > 0;
+ // UPDATED: Ring rendering logic to include upload progress AND segmented rings
+  const renderRing = (targetUser: ProfileWithStatus) => {
+    const statusCount = targetUser.statuses.length;
     
-    if (user.id === profile?.id) {
-        // --- OWN RING (Progress Bar / Existing Status / No Status) ---
-        // 1. Progress Ring (for upload)
-        if (uploadProgress !== null && uploadProgress < 100) {
-            // Use conic gradient to simulate progress.
-            return (
-                <div 
-                    className="absolute inset-0 rounded-full p-[2px] -z-10"
-                    style={{
-                        background: `conic-gradient(rgb(var(--color-primary)) ${uploadProgress}%, rgb(var(--color-border)) ${uploadProgress}%)`
-                    }}
-                />
-            );
-        }
+    // 1. Upload Progress (Own User)
+    if (targetUser.id === profile?.id && uploadProgress !== null && uploadProgress < 100) {
+        return (
+            // FIX: Changed z-index from -z-1 to z-0 to ensure visibility.
+            <div 
+                className="absolute rounded-full z-0 inset-[-2px]" 
+                style={{
+                    background: `conic-gradient(rgb(var(--color-primary)) ${uploadProgress}%, rgb(var(--color-border)) ${uploadProgress}%)`
+                }}
+            />
+        );
+    }
 
-        // 2. Existing Status Ring (Gray)
-        if (hasStatus) {
-            // Show a plain gray ring if you have a status (like IG)
-            return <div className={`absolute inset-0 rounded-full p-[2px] -z-10 bg-[rgb(var(--color-border))]`} />
-        } else {
-            // 3. No Status Ring (Dashed)
-            // No status: Dashed ring
-            return <div className="absolute inset-0 rounded-full border-2 border-dashed border-[rgb(var(--color-border))] -z-10"/>
+    // 2. No Status (Dashed Ring for Own User)
+    if (statusCount === 0 && targetUser.id === profile?.id) {
+        // FIX: Changed z-index from -z-1 to z-0 to ensure visibility.
+        return <div className="absolute rounded-full border-2 border-dashed border-[rgb(var(--color-border))] z-0 inset-[-2px]"/>;
+    }
+    
+    // 3. Single Status (statusCount === 1) - Reverting to stable Tailwind classes
+    if (statusCount === 1) {
+        let className = 'bg-[rgb(var(--color-border))]'; // Default: seen/gray
+        if (targetUser.hasUnseen) {
+            // Unseen: Use the linear gradient class which works well for a single item
+            className = 'bg-gradient-to-tr from-[rgb(var(--color-accent))] to-[rgb(var(--color-primary))] group-hover:scale-105 transition-transform';
+        }
+        
+        return (
+            // FIX: Changed z-index from -z-1 to z-0 to ensure visibility.
+            <div 
+                className={`absolute rounded-full z-0 inset-[-2px] ${className}`} 
+            />
+        );
+    }
+
+
+    // 4. Multiple Statuses (statusCount > 1) - Conic Gradient Segmented Ring (for segmented look)
+    // Seen color: gray/border. Unseen color: Primary/Accent
+    const unseenColor = `rgb(var(--color-primary))`; 
+    const seenColor = `rgb(var(--color-border))`;
+    const gapDegrees = 3;
+    
+    const segmentSize = 360 / statusCount;
+    const parts = [];
+    
+    for (let i = 0; i < statusCount; i++) {
+        // Determine if this specific story is unseen
+        const isUnseen = !targetUser.statuses[i].viewed_by.includes(user.id);
+        const color = isUnseen ? unseenColor : seenColor;
+
+        const start = i * segmentSize + gapDegrees / 2;
+        const end = (i + 1) * segmentSize - gapDegrees / 2;
+        
+        if (start < end) {
+            parts.push(`${color} ${start}deg ${end}deg`);
         }
     }
     
-    // --- OTHERS' RINGS ---
-    // Gradient if unseen, gray if seen
-    return <div className={`absolute inset-0 rounded-full p-[2px] -z-10 ${user.hasUnseen ? 'bg-gradient-to-tr from-[rgb(var(--color-accent))] to-[rgb(var(--color-primary))] group-hover:scale-105 transition-transform' : 'bg-[rgb(var(--color-border))]'}`} />
-  };
+    const gradientString = parts.join(', ');
 
+    return (
+        // FIX: Changed z-index from -z-1 to z-0 to ensure visibility.
+        <div 
+            className={`absolute rounded-full z-0 inset-[-2px] ${targetUser.hasUnseen ? 'group-hover:scale-105 transition-transform' : ''}`}
+            style={{
+                background: `conic-gradient(${gradientString})`
+            }}
+        />
+    );
+  };
+  
   return (
-    <div className="flex space-x-4 p-4 overflow-x-auto scrollbar-hide bg-[rgb(var(--color-surface))] border-b border-[rgb(var(--color-border))]">
+    <div className="flex space-x-4 p-4 overflow-x-auto scrollbar-hide bg-[rgb(var(--color-surface))] border-b border-[rgb(var(--color-text-secondary))]">
       {/* Own Circle */}
       {ownStatus && (
         <div 
@@ -218,14 +258,14 @@ export const StatusTray: React.FC = () => {
           <div className="relative w-16 h-16 rounded-full">
             <img 
               src={profile?.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${profile?.username}`}
-              className="w-full h-full rounded-full object-cover p-[2px] bg-[rgb(var(--color-surface))]"
+              className="w-full h-full rounded-full object-cover p-[2px] bg-[rgb(var(--color-surface))] relative z-10"
               alt="Your avatar"
             />
             {renderRing(ownStatus)}
             
             <div 
               onClick={handleOwnPlusClick}
-              className="absolute -bottom-1 -right-1 w-6 h-6 bg-[rgb(var(--color-primary))] rounded-full flex items-center justify-center group-hover:scale-110 transition-transform cursor-pointer border-2 border-[rgb(var(--color-surface))]"
+              className="absolute -bottom-1 -right-1 w-6 h-6 bg-[rgb(var(--color-primary))] rounded-full flex items-center justify-center group-hover:scale-110 transition-transform cursor-pointer border-2 border-[rgb(var(--color-surface))] z-20"
             >
               <Plus size={16} className="text-[rgb(var(--color-text-on-primary))]" />
             </div>
@@ -244,7 +284,7 @@ export const StatusTray: React.FC = () => {
             <div className="relative w-16 h-16 rounded-full">
               <img 
                 src={statusUser.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${statusUser.username}`}
-                className="w-full h-full rounded-full object-cover p-[2px] bg-[rgb(var(--color-surface))]"
+                className="w-full h-full rounded-full object-cover p-[2px] bg-[rgb(var(--color-surface))] relative z-10"
                 alt={statusUser.display_name}
               />
               {renderRing(statusUser)}

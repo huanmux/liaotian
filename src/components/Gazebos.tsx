@@ -1072,7 +1072,8 @@ export const Gazebos = ({ initialInviteCode, onInviteHandled, initialGazeboId }:
                   </div>
 
                   {/* Input Area */}
-                  <div className="p-4 pt-0">
+                  {/* Modified padding: p-2 pb-1 on mobile */}
+                  <div className="p-4 pt-0 md:p-4 md:pt-0 p-2 pb-1">
                       <div className="bg-[rgb(var(--color-surface-hover))] rounded-lg p-2 pr-4 shadow-inner relative">
                           
                           {/* Progress Bar */}

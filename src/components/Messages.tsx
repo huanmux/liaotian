@@ -1842,9 +1842,10 @@ export const Messages = ({
             </div>
 
             {/* Input Area */}
-            <div className="p-2 sm:p-3 md:p-4 bg-[rgb(var(--color-background))]">
+            {/* Modified padding: pb-1 on mobile to pull it down, p-4 on desktop */}
+            <div className="p-2 pb-1 md:p-4 bg-[rgb(var(--color-background))]">
                 <div className="bg-[rgb(var(--color-surface))] border border-[rgb(var(--color-border))] rounded-3xl shadow-lg flex flex-col relative transition-all duration-200 focus-within:ring-1 focus-within:ring-[rgb(var(--color-accent))] focus-within:border-[rgb(var(--color-accent))]">
-                    
+                  
                     {/* Reply Preview */}
                     {replyingTo && (
                         <div className="px-4 pt-3 flex items-center justify-between">
