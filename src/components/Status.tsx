@@ -172,39 +172,69 @@ export const StatusTray: React.FC = () => {
 
   if (!user) return null;
 
-  // UPDATED: Ring rendering logic to include upload progress
-  const renderRing = (user: ProfileWithStatus) => {
-    const hasStatus = user.statuses.length > 0;
+  // UPDATED: Ring rendering logic to include upload progress AND segmented rings
+  const renderRing = (targetUser: ProfileWithStatus) => {
+    const statusCount = targetUser.statuses.length;
     
-    if (user.id === profile?.id) {
-        // --- OWN RING (Progress Bar / Existing Status / No Status) ---
-        // 1. Progress Ring (for upload)
-        if (uploadProgress !== null && uploadProgress < 100) {
-            // Use conic gradient to simulate progress.
-            return (
-                <div 
-                    className="absolute inset-0 rounded-full p-[2px] -z-10"
-                    style={{
-                        background: `conic-gradient(rgb(var(--color-primary)) ${uploadProgress}%, rgb(var(--color-border)) ${uploadProgress}%)`
-                    }}
-                />
-            );
-        }
-
-        // 2. Existing Status Ring (Gray)
-        if (hasStatus) {
-            // Show a plain gray ring if you have a status (like IG)
-            return <div className={`absolute inset-0 rounded-full p-[2px] -z-10 bg-[rgb(var(--color-border))]`} />
-        } else {
-            // 3. No Status Ring (Dashed)
-            // No status: Dashed ring
-            return <div className="absolute inset-0 rounded-full border-2 border-dashed border-[rgb(var(--color-border))] -z-10"/>
-        }
+    // 1. Upload Progress (Own User)
+    if (targetUser.id === profile?.id && uploadProgress !== null && uploadProgress < 100) {
+        return (
+            <div 
+                className="absolute inset-0 rounded-full p-[2px] -z-10"
+                style={{
+                    background: `conic-gradient(rgb(var(--color-primary)) ${uploadProgress}%, rgb(var(--color-border)) ${uploadProgress}%)`
+                }}
+            />
+        );
     }
+
+    // 2. No Status (Dashed Ring for Own User)
+    if (statusCount === 0 && targetUser.id === profile?.id) {
+        return <div className="absolute inset-0 rounded-full border-2 border-dashed border-[rgb(var(--color-border))] -z-10"/>;
+    }
+
+    // 3. Segmented Ring Logic
+    // Seen color: gray/border. Unseen color: Gradient (simulated via CSS vars or fixed colors)
+    const unseenColor = `rgb(var(--color-primary))`; 
+    const seenColor = `rgb(var(--color-border))`;
+    const gapDegrees = 3;
     
-    // --- OTHERS' RINGS ---
-    // Gradient if unseen, gray if seen
-    return <div className={`absolute inset-0 rounded-full p-[2px] -z-10 ${user.hasUnseen ? 'bg-gradient-to-tr from-[rgb(var(--color-accent))] to-[rgb(var(--color-primary))] group-hover:scale-105 transition-transform' : 'bg-[rgb(var(--color-border))]'}`} />
+    let gradientString = '';
+
+    if (statusCount === 1) {
+        // Single segment (Full circle)
+        const color = targetUser.hasUnseen ? unseenColor : seenColor;
+        gradientString = `${color} 0deg 360deg`;
+    } else {
+        // Multiple segments
+        const segmentSize = 360 / statusCount;
+        const parts = [];
+        
+        for (let i = 0; i < statusCount; i++) {
+            // Determine if this specific story is unseen
+            // Note: In the simplified list, we check generally. 
+            // For precise per-segment coloring, we'd check status[i].viewed_by.
+            // Here we use the user's aggregate status for visual simplicity 
+            // OR check individual status if data is available.
+            const isUnseen = !targetUser.statuses[i].viewed_by.includes(user.id);
+            const color = isUnseen ? unseenColor : seenColor;
+
+            const start = i * segmentSize + gapDegrees / 2;
+            const end = (i + 1) * segmentSize - gapDegrees / 2;
+            
+            parts.push(`${color} ${start}deg ${end}deg`);
+        }
+        gradientString = parts.join(', ');
+    }
+
+    return (
+        <div 
+            className={`absolute inset-0 rounded-full p-[2px] -z-10 ${targetUser.hasUnseen ? 'group-hover:scale-105 transition-transform' : ''}`}
+            style={{
+                background: `conic-gradient(${gradientString})`
+            }}
+        />
+    );
   };
 
   return (
