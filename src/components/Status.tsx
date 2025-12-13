@@ -172,15 +172,16 @@ export const StatusTray: React.FC = () => {
 
   if (!user) return null;
 
-  // UPDATED: Ring rendering logic to include upload progress AND segmented rings
+ // UPDATED: Ring rendering logic to include upload progress AND segmented rings
   const renderRing = (targetUser: ProfileWithStatus) => {
     const statusCount = targetUser.statuses.length;
     
     // 1. Upload Progress (Own User)
     if (targetUser.id === profile?.id && uploadProgress !== null && uploadProgress < 100) {
         return (
+            // FIX: Use inset-[-2px] for proper ring visibility, remove p-[2px]
             <div 
-                className="absolute inset-0 rounded-full p-[2px] -z-10"
+                className="absolute rounded-full -z-10 inset-[-2px]" 
                 style={{
                     background: `conic-gradient(rgb(var(--color-primary)) ${uploadProgress}%, rgb(var(--color-border)) ${uploadProgress}%)`
                 }}
@@ -190,7 +191,8 @@ export const StatusTray: React.FC = () => {
 
     // 2. No Status (Dashed Ring for Own User)
     if (statusCount === 0 && targetUser.id === profile?.id) {
-        return <div className="absolute inset-0 rounded-full border-2 border-dashed border-[rgb(var(--color-border))] -z-10"/>;
+        // FIX: Use inset-[-2px] for proper ring visibility
+        return <div className="absolute rounded-full border-2 border-dashed border-[rgb(var(--color-border))] -z-10 inset-[-2px]"/>;
     }
     
     // 3. Single Status (statusCount === 1) - Reverting to stable Tailwind classes
@@ -202,8 +204,9 @@ export const StatusTray: React.FC = () => {
         }
         
         return (
+            // FIX: Use inset-[-2px] for proper ring visibility, remove p-[2px]
             <div 
-                className={`absolute inset-0 rounded-full p-[2px] -z-10 ${className}`} 
+                className={`absolute rounded-full -z-10 inset-[-2px] ${className}`} 
             />
         );
     }
@@ -226,7 +229,6 @@ export const StatusTray: React.FC = () => {
         const start = i * segmentSize + gapDegrees / 2;
         const end = (i + 1) * segmentSize - gapDegrees / 2;
         
-        // Push color stops for the segment
         if (start < end) {
             parts.push(`${color} ${start}deg ${end}deg`);
         }
@@ -235,14 +237,16 @@ export const StatusTray: React.FC = () => {
     const gradientString = parts.join(', ');
 
     return (
+        // FIX: Use inset-[-2px] for proper ring visibility, remove p-[2px]
         <div 
-            className={`absolute inset-0 rounded-full p-[2px] -z-10 ${targetUser.hasUnseen ? 'group-hover:scale-105 transition-transform' : ''}`}
+            className={`absolute rounded-full -z-10 inset-[-2px] ${targetUser.hasUnseen ? 'group-hover:scale-105 transition-transform' : ''}`}
             style={{
                 background: `conic-gradient(${gradientString})`
             }}
         />
     );
   };
+  
   return (
     <div className="flex space-x-4 p-4 overflow-x-auto scrollbar-hide bg-[rgb(var(--color-surface))] border-b border-[rgb(var(--color-border))]">
       {/* Own Circle */}
