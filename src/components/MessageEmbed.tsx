@@ -75,7 +75,9 @@ export const MessageEmbed = ({ url }: { url: string }) => {
             {/* Description */}
             {data.description && (
               <p className="text-xs text-[rgb(var(--color-text-secondary))] line-clamp-3">
-                {data.description}
+                {data.description.length > 20
+                  ? `${data.description.substring(0, 20)}...`
+                  : data.description}
               </p>
             )}
           </div>
