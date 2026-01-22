@@ -26,7 +26,7 @@ const SVG_PATH = "M403.68 234.366c-3.681 5.618-30.224 30.851-40.724 38.713-25.34
 const SVG_VIEWBOX = "0 0 784 1168";
 
 // --- SPECIAL EVENT CONFIG ---
-export const SPECIAL_EVENT_MODE = true;
+export const SPECIAL_EVENT_MODE = false;
 export const EVENT_MESSAGE = "🎉 HAPPY BIRTHDAY TO THE FOUNDER 🎉";
 const EVENT_THEMES = ["https://huanmux.github.io/assets/audio/theme01.mp3", "https://huanmux.github.io/assets/audio/theme02.mp3"];
 
