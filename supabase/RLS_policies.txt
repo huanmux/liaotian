@@ -1,0 +1,90 @@
+active_voice_sessions:
+- Public read access : SELECT : public
+- Users can delete their own session : DELETE : public
+- Users can insert their own session : INSERT : public
+
+comments:
+- Comments are viewable by everyone : SELECT : public
+- Users can create comments : INSERT : authenticated
+- Users can delete own comments : DELETE : authenticated
+
+follows:
+Follows are viewable by everyone : SELECT : public
+Users can follow others : INSERT : authenticated
+Users can unfollow : DELETE : authenticated
+
+forum_comments:
+Create forum comments : INSERT : public
+Manage own forum comments : ALL : public
+View forum comments : SELECT : authenticated
+
+forum_posts:
+Create forum posts : INSERT : public
+Manage own forum posts : ALL : public
+View forum posts : SELECT : authenticated
+
+forums:
+Create forums : INSERT : public
+Owner manage forums: ALL : public
+View forums: SELECT : authenticated
+
+gazebo_channels:
+Public access for now : ALL : public
+
+gazebo_members:
+Public access for now : ALL : public
+
+gazebo_message_reactions:
+Everyone can see reactions : SELECT : public
+Members can add reactions : INSERT : public
+Members can remove own reactions : DELETE : public
+
+gazebo_messages:
+Public access for now : ALL : public
+
+gazebos:
+Public access for now : ALL : public
+
+group_members:
+Join group : INSERT : public
+Leave group : DELETE : public
+View group members : SELECT : authenticated
+
+groups:
+Create groups : INSERT : public
+Owner manage groups : ALL : public
+View groups : SELECT : public
+
+likes:
+Likes are viewable by everyone : SELECT : public
+Users can like entities : INSERT : authenticated
+Users can unlike entities : DELETE : authenticated
+
+message_reactions:
+Everyone can see reactions: SELECT : public
+Users can add reactions : INSERT : public
+Users can delete their own reactions : DELETE : public
+
+messages:
+Users can insert messages : INSERT : public
+Users can send messages : INSERT : authenticated
+Users can update their own messages : UPDATE : public
+Users can update their received messages : UPDATE : authenticated
+Users can view messages they are involved in : SELECT : public
+Users can view their messages : SELECT : authenticated
+
+posts:
+Posts are viewable by everyone : SELECT : public
+Users can create their own posts: INSERT : authenticated
+Users can delete own posts : DELETE : authenticated
+
+profiles:
+Public profiles are viewable by everyone : SELECT : public
+Users can insert their own profile : INSERT : authenticated
+Users can update own profile : UPDATE : authenticated
+
+statuses:
+Users can insert own statuses : INSERT : public
+Users can read active statuses : SELECT : public
+Users can read own archive : SELECT : public
+Users can update own viewed_by : UPDATE : public
