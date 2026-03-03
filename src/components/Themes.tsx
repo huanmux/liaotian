@@ -19,7 +19,12 @@ const presets: ThemePreset[] = [
   { value: 'mahir-beats', name: 'Mahir Beats', desc: 'Special theme for Mahir. Deep dark blues. Enjoy the cruise.'},
   { value: 'dewan-mukto', name: 'Dewan Mukto', desc: 'Low contrast within pure black and white. Timeless.'},
   { value: 'marlizo', name: 'Marlizo', desc: 'Special theme for Marlizo. Dante from Devil May Cry will love this.'},
-  { value: 'invincible', name: 'Invincible', desc: 'Not invisible, yet invincible. This is a theme for people like A.A.A. who are the role models of IT. Pure OLED darkness.'}
+  { value: 'invincible', name: 'Invincible', desc: 'Not invisible, yet invincible. This is a theme for people like A.A.A. who are the role models of IT. Pure OLED darkness.'},
+{ value: 'cyberlush', name: 'Cyber Lush', desc: ''},
+{ value: 'frostbyte', name: 'Frost Byte', desc: ''},
+{ value: 'soulamber', name: 'Soul Amber', desc: ''},
+{ value: 'midnightorchid', name: 'Midnight Orchid', desc: ''},
+{ value: 'moonshine', name: 'Moonshine', desc: ''}
 ];
 
 interface ThemesProps {

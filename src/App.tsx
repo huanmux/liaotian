@@ -642,7 +642,7 @@ const handleMessageUser = (targetProfile: any) => {
 
       {view !== 'messages' && (
         <footer className="text-center text-[rgb(var(--color-text-secondary))] text-xs py-4 border-t border-[rgb(var(--color-border))] bg-[rgb(var(--color-surface))] hidden md:block">
-          © Mux {new Date().getFullYear()}
+          © HuanMux {new Date().getFullYear()}
         </footer>
        )}
 
