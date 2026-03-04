@@ -35,7 +35,7 @@ CREATE TABLE public.profiles (
   banner_url text DEFAULT ''::text,
   verified boolean DEFAULT false,
   created_at timestamp with time zone DEFAULT now(),
-  theme text DEFAULT 'lt-classic'::text,
+  theme text DEFAULT 'default-theme'::text,
   verification_request text DEFAULT ''::text,
   last_seen timestamp with time zone,
   bio_link text DEFAULT ''::text,
@@ -493,3 +493,49 @@ CREATE POLICY "Users can update own viewed_by" ON public.statuses
 -- DONE! Database is fully initialized with all tables, fields,
 -- constraints, types, RLS, and policies exactly as required.
 -- =====================================================
+
+-- =====================================================
+-- STORAGE BUCKET CONFIGURATION
+-- =====================================================
+
+-- 1. Create the "media" bucket
+-- We set public: true so that getPublicUrl works without signing
+INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+VALUES (
+  'media', 
+  'media', 
+  true, 
+  104857600, -- 100MB limit (matches your MAX_FILE_SIZE)
+  ARRAY['image/*', 'video/*', 'audio/*', 'application/pdf', 'text/plain', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'application/json', 'application/zip']
+)
+ON CONFLICT (id) DO UPDATE SET 
+  public = EXCLUDED.public,
+  file_size_limit = EXCLUDED.file_size_limit,
+  allowed_mime_types = EXCLUDED.allowed_mime_types;
+
+-- 2. Set up RLS Policies for the "media" bucket
+-- Note: Policies for storage are applied to the storage.objects table
+
+-- POLICY: Allow public to view any file in the media bucket
+CREATE POLICY "Public Access" ON storage.objects
+  FOR SELECT TO public
+  USING (bucket_id = 'media');
+
+-- POLICY: Allow authenticated users to upload to their own folders
+-- Logic: folder_name/user_id/filename
+-- Example: posts/uuid/image.png
+CREATE POLICY "Users can upload own media" ON storage.objects
+  FOR INSERT TO authenticated
+  WITH CHECK (
+    bucket_id = 'media' AND
+    (storage.foldername(name))[1] IN ('profiles', 'posts', 'messages', 'statuses') AND
+    (storage.foldername(name))[2] = auth.uid()::text
+  );
+
+-- POLICY: Allow users to update or delete their own media
+CREATE POLICY "Users can manage own media" ON storage.objects
+  FOR ALL TO authenticated
+  USING (
+    bucket_id = 'media' AND
+    (storage.foldername(name))[2] = auth.uid()::text
+  );

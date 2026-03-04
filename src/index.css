@@ -14,7 +14,22 @@ body {
 */
 
 /* DEFAULT THEME: LT Classic (Fiery orange and reds) */
-:root, .theme-lt-classic {
+:root, .theme-default-theme {
+  /* Primary/Accent colors - use RGB values */
+  --color-primary: 255, 69, 0;    /* Orange-Red */
+  --color-accent: 255, 140, 0;    /* Dark Orange */
+  
+  /* Text/Background colors */
+  --color-background: 255, 255, 255; /* White */
+  --color-text: 17, 24, 39;          /* Gray-900 */
+  --color-text-on-primary: 255, 255, 255; /* White for text over primary color */
+  --color-surface: 255, 255, 255;  /* Card backgrounds - white in light */
+  --color-border: 229, 231, 235;    /* Borders - gray-200 in light */
+  --color-text-secondary: 107, 114, 128; /* Secondary text - gray-500 in light */
+  --color-surface-hover: 249, 250, 251;  /* Hover states - gray-50 in light */
+}
+
+.theme-lt-classic {
   /* Primary/Accent colors - use RGB values */
   --color-primary: 255, 69, 0;    /* Orange-Red */
   --color-accent: 255, 140, 0;    /* Dark Orange */
