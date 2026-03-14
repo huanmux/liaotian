@@ -9,7 +9,7 @@ interface ThemePreset {
 }
 
 const presets: ThemePreset[] = [
-  { value: 'lt-classic', name: 'LT Classic', desc: 'Default theme. Fiery orange and reds.' },
+  { value: 'default-theme', name: 'LT Classic', desc: 'Default theme. Fiery orange and reds.' },
   { value: 'lt-dark', name: 'LT Dark', desc: 'Dark mode. Fiery orange and reds.' },
   { value: 'muxday', name: 'MuxDay', desc: 'Alternate theme in honor of the previous MuxDay platform. Analogous shades of blue.' },
   { value: 'amrella', name: 'Amrella', desc: 'Alternate theme in honor of the previous Amrella platform. Analogous shades of green.' },
