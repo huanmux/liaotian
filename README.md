@@ -10,11 +10,12 @@ Current version: 1.1.1A
 This is a project where **anyone can easily fork/clone and deploy their own** versions of this platform. This GitHub repository provides a sort of boilerplate template for making your own such platforms, in a way.
 Unlike Mastodon and other open-source and decentralized or fediverse alternatives like this, the code is **compiled into a static site**, meaning it can be easily **hosted on most free hosting providers** for $0. All it needs is a database connection via Supabase. The content **behaves as if it is dynamic and real-time**, thanks to both Vercel (as what we have used) and Supabase's real-time API features.
 Also to get started on developing your own version of LiaoTian, it's much simpler than most other "templates" out there, since it uses only a small number of files for its actual codebase (as of now).
+The word "**LiaoTian**" comes from the Chinese/Mandarin word "聊天" for "chatting to relieve boredom", formulated during November 2025 when the founder of this project ([@dwmk](https://github.com/dwmk)) was going through a hype for Chinese culture.
 
-## 👤 Use LiaoTian itself
+## 👤 Use our version itself
 If you just want to create an account on **Liaoverse** (our official deployment) then [sign up here](https://liaoverse.vercel.app/).
 
-## 🌐 Host your own LiaoTian
+## 🌐 Host your own social platform
 1. Fork this repository to your [GitHub](https://github.com/) account.
 2. Connect this repository to your [Vercel](https://vercel.com/) account.
 3. Create a [Supabase](https://supabase.com) database. Initialize with the SQL commands stored in `supabase/init_it_all.sql`.
