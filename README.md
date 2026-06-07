@@ -5,6 +5,10 @@ easy-to-host social platforms for everyone
 Current version: 1.1.1A
 ```
 
+# If you're new, please watch these videos
+1. sample product preview: [youtube.com/shorts/5AwEe8JDiUU](https://youtube.com/shorts/5AwEe8JDiUU)
+2. tutorial for how to host your own: [youtu.be/DpjBc8rrOaI](https://youtu.be/DpjBc8rrOaI)
+
 ### What makes LiaoTian (LT) so special from already existing social media/networking platforms?
 
 This is a project where **anyone can easily fork/clone and deploy their own** versions of this platform. This GitHub repository provides a sort of boilerplate template for making your own such platforms, in a way.
@@ -104,7 +108,7 @@ Learn more: Content Security Policy - Eval
 ---
 
 ## ⚖️ Legal information
-[LiaoTian](https://github.com/huanmux/liaotian) is a digital product brand/project by [Mux ZiZhiZhe Co.](https://huanmux.github.io/zzz) under [HuanMux](https://www.linkedin.com/company/huanmux).
+[LiaoTian](https://github.com/huanmux/liaotian) is a digital product brand/project by [Dewan Mukto](https://dewanmukto.github.io) on behalf of his brands [HuanMux](https://huanmux.vercel.app) and [Makron](https://makron.app).
 
 - [[📄 Terms of Service]](public/pages/terms-of-service.md) 
 - [[📄 Privacy Policy]](public/pages/privacy-policy.md)
